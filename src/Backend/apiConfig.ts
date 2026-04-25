@@ -2,38 +2,16 @@ export const VERSION = import.meta.env.VITE_VERSION || "v1";
 export const BASE_URL = `https://api.prediko.io/api/${VERSION}`;
 
 /**
- * Fetches the API key from the local donaventory.key file via the dev server.
+ * Retrieves the API key from Environment Variables.
  */
-export async function getAuthKey(): Promise<string | null> {
-    try {
-        const res = await fetch('/api/key');
-        const data = await res.json();
-        return data.key || null;
-    } catch (e) {
-        return null;
-    }
+export function getAuthKey(): string | null {
+    return import.meta.env.VITE_PREDIKO_AUTH_KEY || null;
 }
 
-/**
- * Saves the API key to the local donaventory.key file.
- */
-export async function saveAuthKey(key: string): Promise<boolean> {
-    try {
-        const res = await fetch('/api/key', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key })
-        });
-        return res.ok;
-    } catch (e) {
-        return false;
-    }
-}
-
-export async function getHeaders() {
-    const key = await getAuthKey();
+export function getHeaders() {
+    const key = getAuthKey();
     if (!key) {
-        throw new Error("API Key missing. Please set it in Settings.");
+        throw new Error("VITE_PREDIKO_AUTH_KEY is missing from .env file.");
     }
     
     return {

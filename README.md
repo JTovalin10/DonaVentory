@@ -2,7 +2,7 @@
 
 DonaVentory is a streamlined production management tool designed to work seamlessly with the Prediko API. It allows users to record production runs, handle automatic Bill of Materials (BOM) deductions, and manage inventory stock levels with a simple search-and-select interface.
 
-## Quick Start
+## 🚀 Quick Start
 
 To run the application on your computer, use the provided launch scripts:
 
@@ -18,24 +18,22 @@ To run the application on your computer, use the provided launch scripts:
 
 ---
 
-## API Key Setup
+## 🔑 API Key Setup
 
-To use this application, you need a valid **Prediko API Key** (`pk_live_...`). Your key is stored locally and is **never** uploaded to GitHub.
+To use this application, you need to set up your **Prediko API Key** in a `.env` file.
 
-### **Option 1: In-App Settings (Recommended)**
-1.  Open the application.
-2.  Click the **Settings** button in the top-right corner.
-3.  Paste your API key into the field.
-4.  Click **Save Key**. The app will remember your key automatically.
+1.  In the project root directory, create a file named **`.env`**.
+2.  Add the following line to the file:
+    ```text
+    VITE_PREDIKO_AUTH_KEY="Bearer pk_live_YOUR_KEY_HERE"
+    ```
+3.  Save the file and restart the application.
 
-### **Option 2: Manual Setup**
-1.  Create a file named **`donaventory.key`** in the root directory (same place as the launch scripts).
-2.  Paste your raw API key (e.g., `pk_live_YOUR_KEY_HERE`) into the file and save it.
-3.  Restart the application if it was already running.
+*Note: The `.env` file is ignored by Git and will not be uploaded to GitHub.*
 
 ---
 
-## Features
+## 📋 Features
 
 -   **Product Search**: Quickly find products by name or variant.
 -   **Automated BOM**: Ties production intake to your Bill of Materials, deducting raw materials automatically in Prediko.
@@ -45,7 +43,7 @@ To use this application, you need a valid **Prediko API Key** (`pk_live_...`). Y
 
 ---
 
-## Developer Setup
+## 🛠 Developer Setup
 
 If you prefer to run the app via the command line:
 
