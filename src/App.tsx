@@ -75,7 +75,14 @@ function App() {
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <button onClick={handleSearch} disabled={loading}>Search</button>
+            <button onClick={handleSearch} disabled={loading}>
+              {loading ? (
+                <span className="button-content">
+                  <span className="spinner"></span>
+                  Searching...
+                </span>
+              ) : 'Search'}
+            </button>
           </div>
 
           <div className="results-list">
@@ -138,7 +145,12 @@ function App() {
 
           <div className="button-group">
             <button className="confirm-btn" onClick={handleIntake} disabled={loading || amount === '' || Number(amount) < 0 || !firstName}>
-              {loading ? 'Processing...' : 'Confirm Intake'}
+              {loading ? (
+                <span className="button-content">
+                  <span className="spinner"></span>
+                  Processing...
+                </span>
+              ) : 'Confirm Intake'}
             </button>
             <button className="cancel-btn" onClick={() => {
               setSelectedSKU(null);
