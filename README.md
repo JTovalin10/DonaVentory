@@ -23,8 +23,9 @@ To run the application on your computer, use the provided launch scripts:
 To use this application, you need to set up your **Prediko API Key** in a `.env` file.
 
 1.  In the project root directory, create a file named **`.env`**.
-2.  Add the following line to the file:
+2.  Add the following lines to the file:
     ```text
+    VITE_VERSION="v1"
     VITE_PREDIKO_AUTH_KEY="Bearer pk_live_YOUR_KEY_HERE"
     ```
 3.  Save the file and restart the application.
