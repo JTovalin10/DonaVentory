@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { searchSKUs } from './Backend/SKUs';
 import { receiveProduction } from './Backend/Orders';
+import { getAuthKey, saveAuthKey } from './Backend/apiConfig';
 import type { SKU } from './Backend/types';
 import './App.css';
 
@@ -13,6 +14,36 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [errors, setErrors] = useState(false);
+  
+  // Settings state
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [keyMissing, setKeyMissing] = useState(false);
+
+  // Load key on mount
+  useEffect(() => {
+    getAuthKey().then(key => {
+      if (key) {
+        setApiKey(key);
+        setKeyMissing(false);
+      } else {
+        setKeyMissing(true);
+        setShowSettings(true);
+      }
+    });
+  }, []);
+
+  const handleSaveKey = async () => {
+    const success = await saveAuthKey(apiKey);
+    if (success) {
+      setShowSettings(false);
+      setKeyMissing(false);
+      setStatus('API Key saved successfully.');
+      setTimeout(() => setStatus(''), 3000);
+    } else {
+      setStatus('Failed to save API key.');
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchTerm) return;
@@ -24,7 +55,7 @@ function App() {
       setStatus(response.data.length > 0 ? '' : 'No products found.');
     } catch (error) {
       console.error(error);
-      setStatus('Search failed. Check your API key.');
+      setStatus('Search failed. Check your API key in Settings.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +84,7 @@ function App() {
       }
     } catch (error) {
       console.error(error);
-      setStatus('Failed to update inventory.');
+      setStatus('Failed to update inventory. Check your API Key.');
     } finally {
       setLoading(false);
     }
@@ -61,7 +92,29 @@ function App() {
 
   return (
     <div className="container">
-      <h1>Production Intake</h1>
+      <header className="app-header">
+        <h1>Production Intake</h1>
+        <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>
+          ⚙️
+        </button>
+      </header>
+
+      {showSettings && (
+        <section className="settings-panel">
+          <h3>API Settings</h3>
+          <div className="input-group">
+            <label>Prediko API Key:</label>
+            <input 
+              type="password" 
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Paste your pk_live_... key here"
+            />
+          </div>
+          <button className="confirm-btn" onClick={handleSaveKey}>Save Key</button>
+          {keyMissing && <p className="error-text">API key is required to use this application.</p>}
+        </section>
+      )}
       
       {!selectedSKU ? (
         <section className="search-section">
@@ -73,7 +126,7 @@ function App() {
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <button onClick={handleSearch} disabled={loading}>Search</button>
+            <button onClick={handleSearch} disabled={loading || keyMissing}>Search</button>
           </div>
 
           <div className="results-list">

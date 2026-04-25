@@ -1,3 +1,37 @@
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.settings-btn {
+  background: var(--social-bg);
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  line-height: 1;
+  transition: background 0.2s;
+}
+
+.settings-btn:hover {
+  background: var(--border);
+}
+
+.settings-panel {
+  background: var(--code-bg);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  margin-bottom: 30px;
+}
+
+.settings-panel h3 {
+  margin-top: 0;
+}
+
 .container {
   max-width: 600px;
   margin: 40px auto;

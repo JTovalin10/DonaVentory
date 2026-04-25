@@ -1,73 +1,63 @@
-# React + TypeScript + Vite
+# DonaVentory Production Intake
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+DonaVentory is a streamlined production management tool designed to work seamlessly with the Prediko API. It allows users to record production runs, handle automatic Bill of Materials (BOM) deductions, and manage inventory stock levels with a simple search-and-select interface.
 
-Currently, two official plugins are available:
+## 🚀 Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+To run the application on your computer, use the provided launch scripts:
 
-## React Compiler
+### **Windows**
+1.  Navigate to the project folder.
+2.  Double-click **`Launch-DonaVentory.bat`**.
+3.  The application will start in the background and open your default browser to `http://localhost:5173`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### **macOS**
+1.  Navigate to the project folder.
+2.  Double-click **`Launch-DonaVentory.command`**.
+3.  The application will start and open your browser automatically.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🔑 API Key Setup
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+To use this application, you need a valid **Prediko API Key** (`pk_live_...`). Your key is stored locally and is **never** uploaded to GitHub.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### **Option 1: In-App Settings (Recommended)**
+1.  Open the application.
+2.  Click the **Settings (⚙️)** icon in the top-right corner.
+3.  Paste your API key into the field.
+4.  Click **Save Key**. The app will remember your key automatically.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### **Option 2: Manual Setup**
+1.  Create a file named **`donaventory.key`** in the root directory (same place as the launch scripts).
+2.  Paste your raw API key (e.g., `pk_live_YOUR_KEY_HERE`) into the file and save it.
+3.  Restart the application if it was already running.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 📋 Features
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+-   **Product Search**: Quickly find products by name or variant.
+-   **Automated BOM**: Ties production intake to your Bill of Materials, deducting raw materials automatically in Prediko.
+-   **Intake Tracking**: Records production runs with unique identifiers including your name and the current timestamp.
+-   **Inventory Math**: Handles "Received" vs "Ordered" logic server-side so the client is always accurate.
+-   **Keyboard Shortcuts**: Hit **Enter** to search and **Enter** again to confirm production for lightning-fast recording.
+
+---
+
+## 🛠 Developer Setup
+
+If you prefer to run the app via the command line:
+
+1.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Start the development server**:
+    ```bash
+    npm run dev
+    ```
+3.  **Build for production**:
+    ```bash
+    npm run build
+    ```
