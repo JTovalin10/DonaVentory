@@ -138,7 +138,7 @@ function App() {
 
           <div className="button-group">
             <button className="confirm-btn" onClick={handleIntake} disabled={loading || amount === '' || Number(amount) < 0 || !firstName}>
-              Confirm Intake
+              {loading ? 'Processing...' : 'Confirm Intake'}
             </button>
             <button className="cancel-btn" onClick={() => {
               setSelectedSKU(null);
