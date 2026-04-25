@@ -1,121 +1,157 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from 'react';
+import { searchSKUs } from './Backend/SKUs';
+import { receiveProduction } from './Backend/Orders';
+import type { SKU } from './Backend/types';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [results, setResults] = useState<SKU[]>([]);
+  const [selectedSKU, setSelectedSKU] = useState<SKU | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [amount, setAmount] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
+  const [errors, setErrors] = useState(false);
+
+  const handleSearch = async () => {
+    if (!searchTerm) return;
+    setLoading(true);
+    setStatus('Searching...');
+    try {
+      const response = await searchSKUs(searchTerm);
+      setResults(response.data);
+      setStatus(response.data.length > 0 ? '' : 'No products found.');
+    } catch (error) {
+      console.error(error);
+      setStatus('Search failed. Check your API key.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIntake = async () => {
+    const numAmount = Number(amount);
+    if (!firstName || amount === '' || numAmount < 0) {
+      setErrors(true);
+      setStatus(numAmount < 0 ? 'Amount cannot be negative.' : 'All fields are required.');
+      return;
+    }
+    
+    setErrors(false);
+    setLoading(true);
+    setStatus(`Updating inventory for ${selectedSKU?.sku_name}...`);
+    try {
+      if (selectedSKU) {
+        await receiveProduction(selectedSKU, numAmount, firstName);
+        setStatus(`Successfully added ${numAmount} units to ${selectedSKU.product_name}!`);
+        setSelectedSKU(null);
+        setAmount('');
+        setFirstName('');
+        setResults([]);
+        setSearchTerm('');
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus('Failed to update inventory.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <div className="container">
+      <h1>Production Intake</h1>
+      
+      {!selectedSKU ? (
+        <section className="search-section">
+          <div className="search-box">
+            <input 
+              type="text" 
+              placeholder="Search product (e.g. 'book')" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <button onClick={handleSearch} disabled={loading}>Search</button>
+          </div>
+
+          <div className="results-list">
+            {results.map((sku) => (
+              <div 
+                key={sku.sku_id} 
+                className="result-item" 
+                onClick={() => setSelectedSKU(sku)}
+              >
+                <div className="product-info">
+                  <div className="product-details">
+                    <strong>{sku.product_name}</strong>
+                    <span className="sku-id-text">{sku.sku_name}</span>
+                  </div>
+                </div>
+                <span className="stock-badge">Stock: {sku.sum_stock_level}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section 
+          className="intake-section"
+          onKeyDown={(e) => e.key === 'Enter' && handleIntake()}
         >
-          Count is {count}
-        </button>
-      </section>
+          <div className="selected-info">
+            <h2>{selectedSKU.product_name}</h2>
+            <p>Current Inventory: {selectedSKU.sum_stock_level}</p>
+          </div>
+          
+          <div className="input-group">
+            <label>Your First Name:</label>
+            <input 
+              type="text" 
+              className={errors && !firstName ? 'error-input' : ''}
+              value={firstName} 
+              onChange={(e) => {
+                setFirstName(e.target.value);
+                if (e.target.value) setErrors(false);
+              }}
+              placeholder="Enter your first name"
+            />
+          </div>
 
-      <div className="ticks"></div>
+          <div className="input-group">
+            <label>Amount Made:</label>
+            <input 
+              type="number" 
+              min="0"
+              className={errors && (amount === '' || Number(amount) < 0) ? 'error-input' : ''}
+              value={amount} 
+              onChange={(e) => {
+                const val = e.target.value;
+                setAmount(val);
+                if (val !== '' && Number(val) >= 0) setErrors(false);
+              }}
+              placeholder="Enter quantity"
+            />
+          </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          <div className="button-group">
+            <button className="confirm-btn" onClick={handleIntake} disabled={loading || amount === '' || Number(amount) < 0 || !firstName}>
+              Confirm Intake
+            </button>
+            <button className="cancel-btn" onClick={() => {
+              setSelectedSKU(null);
+              setErrors(false);
+              setStatus('');
+            }} disabled={loading}>
+              Cancel
+            </button>
+          </div>
+        </section>
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {status && <p className={errors ? 'status-msg error-text' : 'status-msg'}>{status}</p>}
+    </div>
+  );
 }
 
-export default App
+export default App;

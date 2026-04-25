@@ -1,68 +1,113 @@
-const version = import.meta.env.VITE_VERSION;
-const header = import.meta.env.VITE_PREDIKO_AUTH_KEY;
-const suppliersApi: string = `https://api.prediko.io/api/${version}/suppliers`;
-const auth: string = "Authorization"
+import type { SKU, CreateOrderResponse, CreateOrderRequest, Supplier } from "../types";
+import { getBOM } from "../Bill_of_Materials";
+import { getAllSuppliers } from "../Suppliers.tsx";
+import { BASE_URL, getHeaders } from "../apiConfig";
 
-interface Address {
-    address1: string;
-    address2: string | null;
-    city: string;
-    province: string | null;
-    country: string;
-    zip: string;
+/**
+ * Step 1: Format the unique intake identifier.
+ */
+function generateIntakeId(firstName: string): string {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    // Using lowercase and a standard format
+    return `${firstName.trim().toLowerCase()} - ${month}-${day}-${year}`;
 }
 
-interface MOQ {
-    warehouse_name: string;
-    minimum_order_quantity: number;
-    minimum_order_type: string;
-}
+/**
+ * Step 2: Check if an entry already exists for today for THIS SKU.
+ * Prediko uses cumulative quantities, so we must find the previous total for this specific product.
+ */
+async function getExistingQuantityForSKU(intakeId: string, skuName: string): Promise<number> {
+    const today = new Date().toISOString().split('T')[0];
+    // We must explicitly ask for PRODUCTION_ORDERs as they are not in the default list
+    const params = new URLSearchParams();
+    params.append("updated_after", `${today}T00:00:00Z`);
+    params.append("order_types", "FINISHED_GOOD");
+    params.append("order_types", "RAW_MATERIAL");
+    params.append("order_types", "PRODUCTION_ORDER");
 
-interface LeadTime {
-    warehouse_name: string;
-    lead_time: number;
-}
+    const response = await fetch(`${BASE_URL}/orders?${params.toString()}`, {
+        headers: getHeaders()
+    });
 
-interface Supplier {
-    id: string;
-    name: string;
-    emails: string[] | null;
-    address: Address;
-    lead_time: number;
-    currency: string;
-    minimum_order_quantity: number;
-    minimum_order_type: string;
-    moqs: MOQ[];
-    lead_times: LeadTime[];
-}
-
-interface SuppliersResponse {
-    data: Supplier[];
-    total: number;
-}
-
-export async function getAllSuppliers(): Promise<unknown[]> {
-    try {
-        const response = await fetch(suppliersApi, { headers: { [auth]: header } });
-        return await response.json();
-    } catch (error: unknown) {
-        if (error instanceof Error) console.error(error.message);
-        else console.error("An unexpected error occured", error);
-        return [];
-    }
-}
-
-export async function filterSuppliers(requestedSuppliers: string[]): Promise<unknown[]> {
-    const resSuppliers: unknown[] = [];
-    for (const name of requestedSuppliers) {
-        try {
-            const response = await fetch(`${suppliersApi}?name=${name}`, { headers: { [auth]: header } });
-            resSuppliers.push(await response.json());
-        } catch (error: unknown) {
-            if (error instanceof Error) console.error(error.message);
-            else console.error("An unexpected error occured ", error);
-            return [];
+    if (response.ok) {
+        const orders = await response.json();
+        // 1. Find the order with our reference
+        const existingOrder = orders.data.find((o: any) => o.reference === intakeId);
+        
+        if (existingOrder) {
+            // 2. Fetch full order details to see the specific SKU quantity
+            // The list view quantity might be an aggregate of multiple items
+            const detailRes = await fetch(`${BASE_URL}/orders/${existingOrder.id}`, {
+                headers: getHeaders()
+            });
+            if (detailRes.ok) {
+                const detail = await detailRes.json();
+                const part = detail.order_parts?.find((p: any) => p.sku_name === skuName);
+                return part ? (part.received || 0) : 0;
+            }
         }
     }
-    return resSuppliers;
+    return 0;
+}
+
+/**
+ * Step 3: Ensure we have a supplier name that Prediko will accept.
+ */
+function resolveValidSupplier(sku: SKU, allSuppliers: Supplier[]): string {
+    const validNames = allSuppliers.map(s => s.name);
+    if (sku.supplier_name && validNames.includes(sku.supplier_name)) {
+        return sku.supplier_name;
+    }
+    return validNames.length > 0 ? validNames[0] : "Terra Green";
+}
+
+/**
+ * Main Orchestrator: Handles the streamlined production intake.
+ */
+export async function receiveProduction(sku: SKU, amount: number, firstName: string): Promise<CreateOrderResponse> {
+    const intakeId = generateIntakeId(firstName);
+    const today = new Date().toISOString().split('T')[0];
+
+    // Parallel lookup for metadata and existing cumulative totals
+    const [bomEntry, allSuppliers, prevQuantity] = await Promise.all([
+        getBOM(sku.sku_name),
+        getAllSuppliers(),
+        getExistingQuantityForSKU(intakeId, sku.sku_name)
+    ]);
+
+    const cumulativeTotal = prevQuantity + amount;
+    const validSupplier = resolveValidSupplier(sku, allSuppliers);
+
+    const payload: CreateOrderRequest = {
+        data: [
+            {
+                sku: sku.sku_name,
+                warehouse: "Warehouse",
+                quantity_ordered: cumulativeTotal,
+                quantity_received: cumulativeTotal,
+                unit_cost_supplier: bomEntry?.unit_cost || sku.unit_cost,
+                supplier: validSupplier,
+                purchase_order_name: intakeId,
+                delivery: today,
+                status: "FULLY_RECEIVED",
+                order_type: "PRODUCTION_ORDER"
+            }
+        ]
+    };
+
+    const response = await fetch(`${BASE_URL}/orders`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Production update failed: ${response.status} - ${errorText}`);
+    }
+
+    return await response.json() as CreateOrderResponse;
 }
