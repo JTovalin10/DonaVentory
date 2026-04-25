@@ -8,7 +8,7 @@ const bomAPI = `${BASE_URL}/bill-of-materials`;
  */
 export async function getBOM(skuName: string): Promise<BOMEntry | null> {
     const response = await fetch(`${bomAPI}?limit=1000`, {
-        headers: getHeaders()
+        headers: await getHeaders()
     });
 
     if (!response.ok) {

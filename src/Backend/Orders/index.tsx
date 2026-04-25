@@ -45,7 +45,7 @@ async function createDraft(sku: SKU, amount: number, cost: number, supplier: str
 
     const res = await fetch(`${BASE_URL}/orders`, {
         method: "POST",
-        headers: getHeaders(),
+        headers: await getHeaders(),
         body: JSON.stringify(payload)
     });
 
@@ -76,7 +76,7 @@ async function markAsReceived(sku: SKU, amount: number, cost: number, supplier: 
 
     const res = await fetch(`${BASE_URL}/orders`, {
         method: "POST",
-        headers: getHeaders(),
+        headers: await getHeaders(),
         body: JSON.stringify(payload)
     });
 

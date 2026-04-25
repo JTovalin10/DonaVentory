@@ -17,7 +17,7 @@ export interface SuppliersResponse {
  */
 export async function getAllSuppliers(): Promise<Supplier[]> {
     const response = await fetch(`${BASE_URL}/suppliers`, {
-        headers: getHeaders()
+        headers: await getHeaders()
     });
 
     if (!response.ok) {

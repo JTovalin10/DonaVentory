@@ -11,7 +11,7 @@ const skuAPI = `${BASE_URL}/skus?aggregation_level=SKU`;
 export async function searchSKUs(name: string): Promise<SKUsResponse> {
     const response = await fetch(skuAPI, {
         method: "POST",
-        headers: getHeaders(),
+        headers: await getHeaders(),
         body: JSON.stringify({ name_like: name })
     });
 
