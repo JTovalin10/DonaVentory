@@ -1,5 +1,9 @@
 @echo off
 echo Starting DonaVentory Production Intake...
+:: Navigate to the project root relative to the script's location
+cd /d "%~dp0.."
+cd DonaVentory
+
 :: Start the development server in a minimized window
 start /min cmd /c "npm run dev"
 echo Waiting for the server to initialize (5s)...

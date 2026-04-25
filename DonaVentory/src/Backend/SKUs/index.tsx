@@ -1,5 +1,5 @@
 import type { SKUsResponse } from "../types";
-import { BASE_URL, getHeaders } from "../apiConfig";
+import { BASE_URL, getHeaders } from "../api-config";
 
 const skuAPI = `${BASE_URL}/skus?aggregation_level=SKU`;
 

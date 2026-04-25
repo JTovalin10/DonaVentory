@@ -1,4 +1,4 @@
-import { getHeaders, BASE_URL } from "../apiConfig";
+import { getHeaders, BASE_URL } from "../api-config";
 
 export interface Supplier {
     id: string;

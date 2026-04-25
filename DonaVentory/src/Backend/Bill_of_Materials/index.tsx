@@ -1,5 +1,5 @@
 import type { BOMResponse, BOMEntry } from "../types";
-import { BASE_URL, getHeaders } from "../apiConfig";
+import { BASE_URL, getHeaders } from "../api-config";
 
 const bomAPI = `${BASE_URL}/bill-of-materials`;
 

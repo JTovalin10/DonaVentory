@@ -1,7 +1,7 @@
 import type { SKU, CreateOrderResponse, CreateOrderRequest, POLineItem } from "../types";
 import { getBOM } from "../Bill_of_Materials";
-import { getAllSuppliers } from "../Suppliers.tsx";
-import { BASE_URL, getHeaders } from "../apiConfig";
+import { getAllSuppliers } from "../Suppliers";
+import { BASE_URL, getHeaders } from "../api-config";
 
 /**
  * Step 1: Generate a unique ID for this specific intake event.
