@@ -2,7 +2,7 @@
 
 DonaVentory is a streamlined production management tool designed to work seamlessly with the Prediko API. It allows users to record production runs, handle automatic Bill of Materials (BOM) deductions, and manage inventory stock levels with a simple search-and-select interface.
 
-## 🚀 Quick Start
+## Quick Start
 
 To run the application on your computer, use the provided launch scripts:
 
@@ -18,13 +18,13 @@ To run the application on your computer, use the provided launch scripts:
 
 ---
 
-## 🔑 API Key Setup
+## API Key Setup
 
 To use this application, you need a valid **Prediko API Key** (`pk_live_...`). Your key is stored locally and is **never** uploaded to GitHub.
 
 ### **Option 1: In-App Settings (Recommended)**
 1.  Open the application.
-2.  Click the **Settings (⚙️)** icon in the top-right corner.
+2.  Click the **Settings** button in the top-right corner.
 3.  Paste your API key into the field.
 4.  Click **Save Key**. The app will remember your key automatically.
 
@@ -35,7 +35,7 @@ To use this application, you need a valid **Prediko API Key** (`pk_live_...`). Y
 
 ---
 
-## 📋 Features
+## Features
 
 -   **Product Search**: Quickly find products by name or variant.
 -   **Automated BOM**: Ties production intake to your Bill of Materials, deducting raw materials automatically in Prediko.
@@ -45,7 +45,7 @@ To use this application, you need a valid **Prediko API Key** (`pk_live_...`). Y
 
 ---
 
-## 🛠 Developer Setup
+## Developer Setup
 
 If you prefer to run the app via the command line:
 

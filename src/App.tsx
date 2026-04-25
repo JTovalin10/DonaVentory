@@ -95,7 +95,7 @@ function App() {
       <header className="app-header">
         <h1>Production Intake</h1>
         <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>
-          ⚙️
+          Settings
         </button>
       </header>
 
