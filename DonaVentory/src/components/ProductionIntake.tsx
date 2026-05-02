@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2 } from 'lucide-react';
+import SuccessCard from '@/components/SuccessCard';
 
 type View = 'search' | 'form' | 'success';
 
@@ -90,22 +90,7 @@ export default function ProductionIntake() {
 
   // ── Success screen ───────────────────────────────────────────────────────────
   if (view === 'success') {
-    return (
-      <div className="p-8 max-w-2xl">
-        <Card>
-          <CardContent className="flex flex-col items-center text-center gap-4 px-8 py-10">
-            <CheckCircle2 className="w-12 h-12 text-green-500" />
-            <div>
-              <p className="text-base font-semibold text-foreground">Intake recorded</p>
-              <p className="text-sm text-muted-foreground mt-1">{successMsg}</p>
-            </div>
-            <Button onClick={handleReset} className="mt-2">
-              Log Another Product
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <SuccessCard message={successMsg} onReset={handleReset} />;
   }
 
   return (

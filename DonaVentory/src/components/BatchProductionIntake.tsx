@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, ArrowLeft, ShoppingCart } from 'lucide-react';
+import SuccessCard from '@/components/SuccessCard';
 
 type View = 'search' | 'checkout';
 
@@ -109,8 +110,21 @@ export default function BatchProductionIntake() {
     }
   };
 
+  const handleReset = () => {
+    setSucceeded(false);
+    setSubmitStatus('');
+    setFirstName('');
+    setAmounts(new Map());
+    setResults([]);
+    setSearchTerm('');
+    setView('search');
+  };
+
   // ── Checkout view ───────────────────────────────────────────────────────
   if (view === 'checkout') {
+    if (succeeded) {
+      return <SuccessCard message={submitStatus} onReset={handleReset} resetLabel="Log Another Batch" />;
+    }
     const cartItems = Array.from(cart.values());
 
     return (
