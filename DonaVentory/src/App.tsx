@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Sidebar, { NAV_ITEMS } from '@/components/Sidebar';
 import type { Tab } from '@/components/Sidebar';
 import ProductionIntake from '@/components/ProductionIntake';
+import BatchProductionIntake from '@/components/BatchProductionIntake';
 import ComingSoon from '@/components/ComingSoon';
 
 export default function App() {
@@ -20,7 +21,8 @@ export default function App() {
         </header>
 
         {activeTab === 'intake' && <ProductionIntake />}
-        {activeTab !== 'intake' && (
+        {activeTab === 'batch' && <BatchProductionIntake />}
+        {activeTab !== 'intake' && activeTab !== 'batch' && (
           <ComingSoon label={currentItem.label} description={currentItem.description} />
         )}
       </main>

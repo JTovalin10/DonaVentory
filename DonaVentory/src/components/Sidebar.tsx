@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-export type Tab = 'intake' | 'receipt' | 'adjustment' | 'reports';
+export type Tab = 'intake' | 'batch' | 'receipt' | 'adjustment' | 'reports';
 
 export interface NavItem {
   id: Tab;
@@ -20,6 +20,18 @@ export const NAV_ITEMS: NavItem[] = [
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
         <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
         <line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'batch',
+    label: 'Batch Intake',
+    description: 'Log multiple finished goods at once',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="6" height="6" rx="1"/>
+        <path d="M3 17h6M3 20h4"/>
+        <path d="M13 6h8M13 12h8M13 18h8"/>
       </svg>
     ),
   },

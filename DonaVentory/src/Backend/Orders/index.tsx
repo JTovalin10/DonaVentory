@@ -1,112 +1,112 @@
-import type { SKU, CreateOrderResponse, CreateOrderRequest } from "../types";
-import { getBOM } from "../Bill_of_Materials";
+import type { SKU, POLineItem, CreateOrderRequest, CreateOrderResponse } from "../types";
 import { getAllSuppliers } from "../Suppliers";
 import { BASE_URL, getHeaders } from "../api-config";
 
-/**
- * Step 1: Generate a unique ID for this specific intake event.
- */
-function generateUniqueIntakeId(firstName: string): string {
+// ── Small helpers ──────────────────────────────────────────────────────────────
+
+function generateIntakeId(firstName: string): string {
     const now = new Date();
-    const timestamp = `${now.getHours()}${now.getMinutes()}${now.getSeconds()}`;
-    const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
-    return `${firstName.trim().toLowerCase()} - ${dateStr} (${timestamp})`;
+    const time = `${now.getHours()}${now.getMinutes()}${now.getSeconds()}`;
+    const date = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
+    return `${firstName.trim().toLowerCase()} - ${date} (${time})`;
 }
 
-/**
- * Step 2: Fetch material cost from the BOM.
- */
-async function getMaterialCost(skuName: string): Promise<number | null> {
-    const bom = await getBOM(skuName);
-    return bom?.unit_cost || null;
+function today(): string {
+    return new Date().toISOString().split('T')[0];
 }
 
-/**
- * Step 3: Create the order as DRAFT. 
- * This triggers Prediko to map the Bill of Materials to this order.
- */
-async function createDraft(sku: SKU, amount: number, cost: number, supplier: string, intakeId: string): Promise<void> {
-    const payload: CreateOrderRequest = {
-        data: [
-            {
-                sku: sku.sku_name,
-                warehouse: "Warehouse",
-                quantity_ordered: amount,
-                quantity_received: 0,
-                unit_cost_supplier: cost,
-                supplier: supplier,
-                purchase_order_name: intakeId,
-                delivery: new Date().toISOString().split('T')[0],
-                status: "DRAFT",
-                order_type: "PRODUCTION_ORDER"
-            }
-        ]
+function resolveSupplier(sku: SKU, supplierNames: string[]): string {
+    if (sku.supplier_name && supplierNames.includes(sku.supplier_name)) return sku.supplier_name;
+    return supplierNames.length > 0 ? supplierNames[0] : "Terra Green";
+}
+
+function buildLineItem(
+    sku: SKU,
+    amount: number,
+    cost: number,
+    supplier: string,
+    intakeId: string,
+    status: "DRAFT" | "FULLY_RECEIVED"
+): POLineItem {
+    return {
+        sku: sku.sku_name,
+        warehouse: "Warehouse",
+        quantity_ordered: amount,
+        quantity_received: status === "FULLY_RECEIVED" ? amount : 0,
+        unit_cost_supplier: cost,
+        supplier,
+        purchase_order_name: intakeId,
+        delivery: today(),
+        status,
+        order_type: "PRODUCTION_ORDER"
     };
+}
 
+// ── API layer ──────────────────────────────────────────────────────────────────
+
+async function sendOrder(payload: CreateOrderRequest): Promise<CreateOrderResponse> {
     const res = await fetch(`${BASE_URL}/orders`, {
         method: "POST",
         headers: await getHeaders(),
         body: JSON.stringify(payload)
     });
-
-    if (!res.ok) throw new Error(`Draft step failed: ${res.status}`);
+    if (!res.ok) throw new Error(`Order POST failed: ${res.status}`);
+    return res.json() as Promise<CreateOrderResponse>;
 }
 
-/**
- * Step 4: Mark the order as RECEIVED and CLOSE it.
- * This triggers the actual deduction of raw materials from inventory.
- */
-async function markAsReceived(sku: SKU, amount: number, cost: number, supplier: string, intakeId: string): Promise<CreateOrderResponse> {
-    const payload: CreateOrderRequest = {
-        data: [
-            {
-                sku: sku.sku_name,
-                warehouse: "Warehouse",
-                quantity_ordered: amount,
-                quantity_received: amount, // Explicitly mark as received
-                unit_cost_supplier: cost,
-                supplier: supplier,
-                purchase_order_name: intakeId,
-                delivery: new Date().toISOString().split('T')[0],
-                status: "FULLY_RECEIVED", // This closes the order
-                order_type: "PRODUCTION_ORDER"
-            }
-        ]
+// ── Order flow ─────────────────────────────────────────────────────────────────
+// Accepts resolved line item data, runs DRAFT → FULLY_RECEIVED, returns result.
+
+type ResolvedItem = { sku: SKU; amount: number; cost: number; supplier: string };
+
+async function postOrder(items: ResolvedItem[], intakeId: string): Promise<CreateOrderResponse> {
+    const draftItems = items.map(({ sku, amount, cost, supplier }) =>
+        buildLineItem(sku, amount, cost, supplier, intakeId, "DRAFT")
+    );
+    const receivedItems = items.map(({ sku, amount, cost, supplier }) =>
+        buildLineItem(sku, amount, cost, supplier, intakeId, "FULLY_RECEIVED")
+    );
+
+    await sendOrder({ data: draftItems });
+    return sendOrder({ data: receivedItems });
+}
+
+// ── Exports ────────────────────────────────────────────────────────────────────
+
+export async function receiveProduction(
+    sku: SKU,
+    amount: number,
+    firstName: string
+): Promise<CreateOrderResponse> {
+    const intakeId = generateIntakeId(firstName);
+
+    const suppliers = await getAllSuppliers();
+
+    const resolvedItem: ResolvedItem = {
+        sku,
+        amount,
+        cost: sku.unit_cost,
+        supplier: resolveSupplier(sku, suppliers.map(s => s.name))
     };
 
-    const res = await fetch(`${BASE_URL}/orders`, {
-        method: "POST",
-        headers: await getHeaders(),
-        body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) throw new Error(`Receive step failed: ${res.status}`);
-    return await res.json() as CreateOrderResponse;
+    return postOrder([resolvedItem], intakeId);
 }
 
-/**
- * Main Orchestrator: Streamlined Production Intake
- */
-export async function receiveProduction(sku: SKU, amount: number, firstName: string): Promise<CreateOrderResponse> {
-    const intakeId = generateUniqueIntakeId(firstName);
-    
-    // 1. Load metadata
-    const [cost, suppliers] = await Promise.all([
-        getMaterialCost(sku.sku_name),
-        getAllSuppliers()
-    ]);
+export async function receiveBatchProduction(
+    items: Array<{ sku: SKU; amount: number }>,
+    firstName: string
+): Promise<CreateOrderResponse> {
+    const intakeId = generateIntakeId(firstName);
 
-    // 2. Find valid supplier
+    const suppliers = await getAllSuppliers();
     const supplierNames = suppliers.map(s => s.name);
-    const validSupplier = (sku.supplier_name && supplierNames.includes(sku.supplier_name))
-        ? sku.supplier_name
-        : (supplierNames.length > 0 ? supplierNames[0] : "Terra Green");
 
-    const finalCost = cost || sku.unit_cost;
+    const resolvedItems: ResolvedItem[] = items.map(({ sku, amount }) => ({
+        sku,
+        amount,
+        cost: sku.unit_cost,
+        supplier: resolveSupplier(sku, supplierNames)
+    }));
 
-    // 3. Step One: Create Draft (Links BOM)
-    await createDraft(sku, amount, finalCost, validSupplier, intakeId);
-
-    // 4. Step Two: Mark as Received (Updates Inventory & Deducts Materials)
-    return await markAsReceived(sku, amount, finalCost, validSupplier, intakeId);
+    return postOrder(resolvedItems, intakeId);
 }

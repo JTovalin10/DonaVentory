@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { CheckCircle2 } from 'lucide-react';
+
+type View = 'search' | 'form' | 'success';
 
 export default function ProductionIntake() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,6 +17,8 @@ export default function ProductionIntake() {
   const [firstName, setFirstName] = useState('');
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [view, setView] = useState<View>('search');
+  const [successMsg, setSuccessMsg] = useState('');
   const [status, setStatus] = useState('');
   const [isError, setIsError] = useState(false);
   const [errors, setErrors] = useState(false);
@@ -52,12 +57,9 @@ export default function ProductionIntake() {
     try {
       if (selectedSKU) {
         await receiveProduction(selectedSKU, numAmount, firstName);
-        setStatus(`Successfully added ${numAmount} units to ${selectedSKU.product_name}!`);
-        setSelectedSKU(null);
-        setAmount('');
-        setFirstName('');
-        setResults([]);
-        setSearchTerm('');
+        setSuccessMsg(`Added ${numAmount} unit${numAmount !== 1 ? 's' : ''} of ${selectedSKU.product_name} to inventory.`);
+        setView('success');
+        setStatus('');
       }
     } catch (error) {
       console.error(error);
@@ -73,11 +75,42 @@ export default function ProductionIntake() {
     setErrors(false);
     setIsError(false);
     setStatus('');
+    setView('search');
   };
+
+  const handleReset = () => {
+    setSelectedSKU(null);
+    setAmount('');
+    setFirstName('');
+    setResults([]);
+    setSearchTerm('');
+    setStatus('');
+    setView('search');
+  };
+
+  // ── Success screen ───────────────────────────────────────────────────────────
+  if (view === 'success') {
+    return (
+      <div className="p-8 max-w-2xl">
+        <Card>
+          <CardContent className="flex flex-col items-center text-center gap-4 px-8 py-10">
+            <CheckCircle2 className="w-12 h-12 text-green-500" />
+            <div>
+              <p className="text-base font-semibold text-foreground">Intake recorded</p>
+              <p className="text-sm text-muted-foreground mt-1">{successMsg}</p>
+            </div>
+            <Button onClick={handleReset} className="mt-2">
+              Log Another Product
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-2xl">
-      {!selectedSKU ? (
+      {view === 'search' ? (
         <div className="space-y-4">
           {/* Search bar */}
           <div className="flex gap-2">
@@ -105,7 +138,7 @@ export default function ProductionIntake() {
                 <Card
                   key={sku.sku_id}
                   className="cursor-pointer transition-colors hover:bg-accent hover:border-primary"
-                  onClick={() => setSelectedSKU(sku)}
+                  onClick={() => { setSelectedSKU(sku); setView('form'); }}
                 >
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="min-w-0">
@@ -122,26 +155,21 @@ export default function ProductionIntake() {
           )}
         </div>
       ) : (
-        <div
-          className="space-y-0"
-          onKeyDown={(e) => e.key === 'Enter' && handleIntake()}
-        >
+        <div onKeyDown={(e) => e.key === 'Enter' && handleIntake()}>
           <Card>
-            {/* Selected product header */}
             <CardHeader className="bg-muted/50 rounded-t-xl border-b px-6 py-5">
               <p className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest mb-1">
                 Recording intake for
               </p>
-              <h2 className="text-xl font-semibold text-foreground tracking-tight">{selectedSKU.product_name}</h2>
+              <h2 className="text-xl font-semibold text-foreground tracking-tight">{selectedSKU?.product_name}</h2>
               <p className="text-xs text-muted-foreground font-mono mt-1">
                 Current inventory:{' '}
-                <span className="text-primary font-medium">{selectedSKU.sum_stock_level}</span>{' '}
+                <span className="text-primary font-medium">{selectedSKU?.sum_stock_level}</span>{' '}
                 units
               </p>
             </CardHeader>
 
             <CardContent className="px-6 py-6 space-y-5">
-              {/* First name */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground">Your First Name</label>
                 <Input
@@ -155,7 +183,6 @@ export default function ProductionIntake() {
                 />
               </div>
 
-              {/* Amount */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground">Amount Made</label>
                 <Input
@@ -172,7 +199,6 @@ export default function ProductionIntake() {
                 />
               </div>
 
-              {/* Buttons */}
               <div className="flex gap-2 pt-2 border-t">
                 <Button
                   className="flex-1"
@@ -195,7 +221,7 @@ export default function ProductionIntake() {
         </div>
       )}
 
-      {/* Status message */}
+      {/* Error / info status */}
       {status && (
         <div className={`mt-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-mono ${
           isError
