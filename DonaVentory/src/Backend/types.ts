@@ -46,6 +46,10 @@ export interface CreateOrderResponse {
     order_ids: string[];
 }
 
+export interface BOMResponse {
+    data: BOMEntry[];
+}
+
 export interface BOMComponent {
     raw_material_name: string;
     raw_material_quantity: number;

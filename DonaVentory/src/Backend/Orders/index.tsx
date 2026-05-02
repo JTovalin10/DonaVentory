@@ -1,4 +1,4 @@
-import type { SKU, CreateOrderResponse, CreateOrderRequest, POLineItem } from "../types";
+import type { SKU, CreateOrderResponse, CreateOrderRequest } from "../types";
 import { getBOM } from "../Bill_of_Materials";
 import { getAllSuppliers } from "../Suppliers";
 import { BASE_URL, getHeaders } from "../api-config";
