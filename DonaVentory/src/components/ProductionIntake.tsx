@@ -24,14 +24,15 @@ export default function ProductionIntake() {
   const [errors, setErrors] = useState(false);
 
   const handleSearch = async () => {
-    if (!searchTerm) return;
+    if (!searchTerm || loading) return;
     setLoading(true);
     setStatus('Searching...');
     setIsError(false);
     try {
       const response = await searchSKUs(searchTerm);
-      setResults(response.data);
-      setStatus(response.data.length > 0 ? '' : 'No products found.');
+      const data = response.data || [];
+      setResults(data);
+      setStatus(data.length > 0 ? '' : 'No products found.');
     } catch (error) {
       console.error(error);
       setStatus('Search failed. Check your VITE_PREDIKO_AUTH_KEY in .env');

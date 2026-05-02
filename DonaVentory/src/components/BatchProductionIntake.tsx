@@ -53,13 +53,14 @@ export default function BatchProductionIntake() {
 
   // ── Search ──────────────────────────────────────────────────────────────
   const handleSearch = async () => {
-    if (!searchTerm) return;
+    if (!searchTerm || searchLoading) return;
     setSearchLoading(true);
     setSearchStatus('Searching...');
     try {
       const response = await searchSKUs(searchTerm);
-      setResults(response.data);
-      setSearchStatus(response.data.length > 0 ? '' : 'No products found.');
+      const data = response.data || [];
+      setResults(data);
+      setSearchStatus(data.length > 0 ? '' : 'No products found.');
     } catch (error) {
       console.error(error);
       setSearchStatus('Search failed. Check your VITE_PREDIKO_AUTH_KEY in .env');

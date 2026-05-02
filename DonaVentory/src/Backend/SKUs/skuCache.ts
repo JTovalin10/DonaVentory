@@ -5,7 +5,6 @@ const MAX_SIZE = 2500;
 
 const cache = new Map<string, SKU>();                // LRU: sku_id → SKU
 const queryGroups = new Map<string, Set<string>>();  // query → sku_ids
-const skuToQueries = new Map<string, Set<string>>(); // sku_id → queries
 
 function promote(id: string, sku: SKU): void {
     cache.delete(id);
@@ -14,36 +13,25 @@ function promote(id: string, sku: SKU): void {
 
 function evictLRU(): void {
     const lruId = cache.keys().next().value as string | undefined;
-    if (!lruId) return;
-
-    // BFS: collect all groups connected to the LRU SKU and all SKUs within them
-    const queriesToEvict = new Set<string>(skuToQueries.get(lruId) ?? []);
-    const skusToEvict = new Set<string>([lruId]);
-
-    for (const query of queriesToEvict) {
-        for (const skuId of queryGroups.get(query) ?? []) {
-            if (skusToEvict.has(skuId)) continue;
-            skusToEvict.add(skuId);
-            for (const q of skuToQueries.get(skuId) ?? []) {
-                queriesToEvict.add(q);
-            }
-        }
-    }
-
-    for (const skuId of skusToEvict) {
-        cache.delete(skuId);
-        skuToQueries.delete(skuId);
-    }
-    for (const query of queriesToEvict) {
-        queryGroups.delete(query);
+    if (lruId) {
+        cache.delete(lruId);
     }
 }
 
 function insertGroup(results: SKU[], query: string): void {
-    const incoming = results.filter(sku => !cache.has(sku.sku_id));
-    if (incoming.length > MAX_SIZE) return; // result set too large to cache
+    // Deduplicate by sku_id for accurate size tracking
+    const uniqueIncoming = new Map<string, SKU>();
+    for (const sku of results) {
+        if (!cache.has(sku.sku_id)) {
+            uniqueIncoming.set(sku.sku_id, sku);
+        }
+    }
 
-    while (cache.size + incoming.length > MAX_SIZE) evictLRU();
+    if (uniqueIncoming.size > MAX_SIZE) return; // Result set too large
+
+    while (cache.size + uniqueIncoming.size > MAX_SIZE) {
+        evictLRU();
+    }
 
     const group = new Set<string>();
     for (const sku of results) {
@@ -52,8 +40,6 @@ function insertGroup(results: SKU[], query: string): void {
         } else {
             cache.set(sku.sku_id, sku);
         }
-        if (!skuToQueries.has(sku.sku_id)) skuToQueries.set(sku.sku_id, new Set());
-        skuToQueries.get(sku.sku_id)!.add(query);
         group.add(sku.sku_id);
     }
     queryGroups.set(query, group);
@@ -66,20 +52,36 @@ export function getSKUById(id: string): SKU | undefined {
 }
 
 export async function searchFromCache(name: string): Promise<SKU[]> {
-    const query = name.toLowerCase();
+    const query = name.toLowerCase().trim();
+    if (!query) return [];
+
     const group = queryGroups.get(query);
 
     if (group) {
         const results: SKU[] = [];
+        let allFound = true;
         for (const skuId of group) {
-            const sku = cache.get(skuId)!;
+            const sku = cache.get(skuId);
+            if (!sku) {
+                allFound = false;
+                break;
+            }
             results.push(sku);
-            promote(skuId, sku);
         }
-        return results;
+
+        if (allFound) {
+            // Promote all hits
+            for (const skuId of group) {
+                promote(skuId, cache.get(skuId)!);
+            }
+            return results;
+        } else {
+            // Partial hit: invalidate the group and fetch fresh
+            queryGroups.delete(query);
+        }
     }
 
-    // Compulsory miss — fetch from API
+    // Compulsory miss or partial hit — fetch from API
     const response = await fetch(`${BASE_URL}/skus?aggregation_level=SKU`, {
         method: "POST",
         headers: getHeaders(),
@@ -91,7 +93,7 @@ export async function searchFromCache(name: string): Promise<SKU[]> {
     }
 
     const json = await response.json();
-    const results: SKU[] = json.data;
+    const results: SKU[] = json.data || [];
     insertGroup(results, query);
     return results;
 }
