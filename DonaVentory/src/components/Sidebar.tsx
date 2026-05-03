@@ -13,7 +13,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   {
     id: 'intake',
-    label: 'Production Intake',
+    label: 'Production Orders',
     description: 'Log finished goods produced in-house',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -25,7 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'batch',
-    label: 'Batch Intake',
+    label: 'Batch Production Orders',
     description: 'Log multiple finished goods at once',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -37,8 +37,8 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'receipt',
-    label: 'Goods Receipt',
-    description: 'Receive raw materials from suppliers',
+    label: 'Purchase Orders',
+    description: 'Track and receive incoming supplier orders',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="1" y="3" width="15" height="13"/>

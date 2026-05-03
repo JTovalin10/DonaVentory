@@ -82,3 +82,73 @@ export interface UpdateConsumptionRequest {
     raw_material_ids: string[];
     actual_quantity_used: number;
 }
+
+// ── Purchase Orders ────────────────────────────────────────────────────────────
+
+export type PurchaseOrderStatus =
+    | "DRAFT"
+    | "SENT_FOR_APPROVAL"
+    | "APPROVED"
+    | "CONFIRMED"
+    | "PARTIALLY_RECEIVED"
+    | "FULLY_RECEIVED";
+
+export type PurchaseOrderType = "FINISHED_GOOD" | "RAW_MATERIAL" | "PRODUCTION_ORDER";
+
+export interface PurchaseOrder {
+    id: string;
+    reference: string;
+    order_status: PurchaseOrderStatus;
+    supplier_name: string;
+    order_type: PurchaseOrderType;
+    origin: string;
+    quantity_confirmed: number;
+    quantity_received: number;
+    delivery_date: string[];
+    confirmed_delivery_date: string[];
+    initial_delivery_date: string[];
+    warehouse_names: string[];
+    cost: number;
+    currency: string;
+    created_at: string;
+}
+
+export interface PurchaseOrdersResponse {
+    data: PurchaseOrder[];
+    total: number;
+}
+
+export interface PurchaseOrderPart {
+    sku_name: string;
+    product_name: string;
+    quantity_confirmed: number;
+    received: number;
+    in_transit: number;
+    confirmed_delivery_date: string;
+    initial_delivery_date: string;
+    total_cost: number;
+    moq_met: boolean;
+    missing_moq: number;
+    moq: number;
+    moq_type: string;
+    is_composite: boolean;
+    pack_quantity: number;
+    pack_type: string;
+    pack_met: boolean;
+    packs_to_order: number;
+    is_closed: boolean;
+    warehouse_name?: string; // only when aggregation_level=SKU_LOCATION
+}
+
+export interface PurchaseOrderDetail extends PurchaseOrder {
+    order_parts: PurchaseOrderPart[];
+}
+
+export interface GetOrdersParams {
+    order_status?: PurchaseOrderStatus;
+    order_types?: PurchaseOrderType[];
+    updated_after?: string; // ISO 8601
+    date_from?: string;     // YYYY-MM-DD
+    date_to?: string;       // YYYY-MM-DD
+    supplier_names?: string[];
+}
