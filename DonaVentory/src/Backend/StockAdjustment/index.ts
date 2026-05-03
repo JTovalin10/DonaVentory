@@ -29,7 +29,9 @@ async function sendOrder(payload: CreateOrderRequest): Promise<CreateOrderRespon
         body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`Order POST failed: ${res.status}`);
-    return res.json() as Promise<CreateOrderResponse>;
+    const data = await res.json() as CreateOrderResponse;
+    if (data.errors?.length) throw new Error(data.errors.join(', '));
+    return data;
 }
 
 export function calcDiff(sku: SKU, targetAmount: number): number {
