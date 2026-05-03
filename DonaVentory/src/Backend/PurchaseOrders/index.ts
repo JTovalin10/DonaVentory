@@ -2,6 +2,10 @@ import type {
     GetOrdersParams,
     PurchaseOrdersResponse,
     PurchaseOrderDetail,
+    PurchaseOrderPart,
+    CreateOrderResponse,
+    POLineItem,
+    PurchaseOrderStatus,
 } from "../types";
 import { BASE_URL, getHeaders } from "../api-config";
 import { TTLCache } from "../Cache/TTLCache";
@@ -59,4 +63,40 @@ export async function getPurchaseOrderById(
     const data = await res.json() as PurchaseOrderDetail;
     detailCache.set(key, data);
     return data;
+}
+
+export async function updatePurchaseOrderReceipt(
+    items: POLineItem[]
+): Promise<CreateOrderResponse> {
+    const res = await fetchWithLog(`${BASE_URL}/orders`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ data: items }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Failed to update purchase order receipt: ${res.status}`);
+    }
+
+    return await res.json() as CreateOrderResponse;
+}
+
+export async function updatePurchaseOrderStatus(
+    orderIds: string[],
+    status: PurchaseOrderStatus
+): Promise<void> {
+    const res = await fetchWithLog(`${BASE_URL}/orders/status`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({
+            order_ids: orderIds,
+            order_status: status,
+        }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Failed to update order status: ${res.status}`);
+    }
 }

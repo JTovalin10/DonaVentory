@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { getPurchaseOrders, getPurchaseOrderById, clearPurchaseOrdersCache } from '@/Backend/PurchaseOrders';
-import type { PurchaseOrder, PurchaseOrderDetail, PurchaseOrderPart, PurchaseOrderStatus } from '@/Backend/types';
+import { getPurchaseOrders, getPurchaseOrderById, clearPurchaseOrdersCache, updatePurchaseOrderReceipt, updatePurchaseOrderStatus } from '@/Backend/PurchaseOrders';
+import type { PurchaseOrder, PurchaseOrderDetail, PurchaseOrderPart, PurchaseOrderStatus, POLineItem } from '@/Backend/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 type View = 'list' | 'detail';
 
@@ -96,7 +97,7 @@ function OrderCard({ order, disabled, onClick }: OrderCardProps) {
                             {formatCost(order.cost, order.currency)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                            {order.quantity_received} / {order.quantity_confirmed} received
+                            {order.quantity_received} / {order.quantity_confirmed} received (Total Ordered: {order.quantity_confirmed})
                         </p>
                     </div>
                 </div>
@@ -107,27 +108,49 @@ function OrderCard({ order, disabled, onClick }: OrderCardProps) {
 
 // ── Line item card ─────────────────────────────────────────────────────────────
 
-function LineItemCard({ part, currency }: { part: PurchaseOrderPart; currency: string }) {
+interface LineItemCardProps {
+    part: PurchaseOrderPart;
+    currency: string;
+    receivedToday: number;
+    onReceivedTodayChange: (val: number) => void;
+    disabled: boolean;
+}
+
+function LineItemCard({ part, currency, receivedToday, onReceivedTodayChange, disabled }: LineItemCardProps) {
     return (
         <Card>
             <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground truncate">{part.product_name}</p>
                         <p className="text-xs text-muted-foreground font-mono mt-0.5">{part.sku_name}</p>
                         <div className="flex gap-4 mt-2 text-xs text-muted-foreground font-mono">
-                            <span>Confirmed: {part.quantity_confirmed}</span>
+                            <span>Total Ordered: {part.quantity_confirmed}</span>
                             <span>Received: {part.received}</span>
                             {part.in_transit > 0 && <span>In Transit: {part.in_transit}</span>}
                         </div>
                     </div>
-                    <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold text-foreground">
-                            {formatCost(part.total_cost, currency)}
-                        </p>
-                        {part.is_closed && (
-                            <p className="text-xs text-muted-foreground mt-1">Closed</p>
-                        )}
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="w-24">
+                            <p className="text-[10px] text-muted-foreground mb-1 uppercase font-mono">Received Today</p>
+                            <Input
+                                type="number"
+                                min="0"
+                                value={receivedToday || ''}
+                                onChange={(e) => onReceivedTodayChange(Number(e.target.value))}
+                                disabled={disabled || part.is_closed}
+                                placeholder="0"
+                                className="h-8 text-sm"
+                            />
+                        </div>
+                        <div className="text-right min-w-[80px]">
+                            <p className="text-sm font-semibold text-foreground">
+                                {formatCost(part.total_cost, currency)}
+                            </p>
+                            {part.is_closed && (
+                                <p className="text-xs text-muted-foreground mt-1">Closed</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </CardContent>
@@ -137,18 +160,110 @@ function LineItemCard({ part, currency }: { part: PurchaseOrderPart; currency: s
 
 // ── Detail view ────────────────────────────────────────────────────────────────
 
-function OrderDetail({ order, onBack }: { order: PurchaseOrderDetail; onBack: () => void }) {
+function OrderDetail({ order, onBack, onRefresh }: { order: PurchaseOrderDetail; onBack: () => void; onRefresh: () => void }) {
+    const [receivedToday, setReceivedToday] = useState<Record<string, number>>({});
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleReceivedTodayChange = (sku: string, val: number) => {
+        setReceivedToday(prev => ({ ...prev, [sku]: val }));
+    };
+
+    const handleSubmit = async () => {
+        const validationErrors: string[] = [];
+        const updates: POLineItem[] = (order.order_parts ?? [])
+            .filter(part => (receivedToday[part.sku_name] || 0) > 0)
+            .map(part => {
+                const dailyQty = receivedToday[part.sku_name] || 0;
+                const currentReceived = part.received;
+                const confirmed = part.quantity_confirmed;
+                const remaining = confirmed - currentReceived;
+
+                if (dailyQty > remaining) {
+                    validationErrors.push(`${part.product_name}: Cannot receive ${dailyQty} (only ${remaining} remaining)`);
+                }
+                
+                const newCumulative = currentReceived + dailyQty;
+                let status: "PARTIALLY_RECEIVED" | "FULLY_RECEIVED" = "PARTIALLY_RECEIVED";
+                if (newCumulative >= confirmed) {
+                    status = "FULLY_RECEIVED";
+                }
+
+                return {
+                    sku: part.sku_name,
+                    warehouse: part.warehouse_name || order.warehouse_names[0] || "Default Warehouse",
+                    quantity_ordered: confirmed,
+                    quantity_received: newCumulative,
+                    supplier: order.supplier_name,
+                    purchase_order_name: order.reference,
+                    delivery: order.delivery_date[0] || new Date().toISOString().split('T')[0],
+                    status: status,
+                    order_type: order.order_type
+                };
+            });
+
+        if (validationErrors.length > 0) {
+            setError(validationErrors.join(' | '));
+            return;
+        }
+
+        if (updates.length === 0) {
+            setError('Please enter at least one quantity to receive.');
+            return;
+        }
+
+        setSubmitting(true);
+        setError('');
+        try {
+            await updatePurchaseOrderReceipt(updates);
+            
+            // Calculate if all parts are now fully received using initial order data + our new inputs
+            const allPartsNowReceived = (order.order_parts ?? []).every(part => {
+                const inputQty = receivedToday[part.sku_name] || 0;
+                return (part.received + inputQty) >= part.quantity_confirmed;
+            });
+
+            if (allPartsNowReceived) {
+                await updatePurchaseOrderStatus([order.id], 'FULLY_RECEIVED');
+            } else {
+                await updatePurchaseOrderStatus([order.id], 'PARTIALLY_RECEIVED');
+            }
+
+            onRefresh();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to update receipt.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <div className="p-8 max-w-4xl">
-            <button
-                onClick={onBack}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-            >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 18 9 12 15 6" />
-                </svg>
-                Back to orders
-            </button>
+            <div className="flex items-center justify-between mb-6">
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    Back to orders
+                </button>
+
+                <Button 
+                    size="sm" 
+                    onClick={handleSubmit} 
+                    disabled={submitting || Object.values(receivedToday).every(v => !v || v <= 0)}
+                >
+                    {submitting ? <Spinner /> : 'Confirm Receipt'}
+                </Button>
+            </div>
+
+            {error && (
+                <div className="mb-6">
+                    <ErrorBanner message={error} />
+                </div>
+            )}
 
             <Card className="mb-6">
                 <CardHeader className="border-b px-6 py-5">
@@ -166,7 +281,7 @@ function OrderDetail({ order, onBack }: { order: PurchaseOrderDetail; onBack: ()
                 <CardContent className="px-6 py-4">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <Stat label="Total Cost" value={formatCost(order.cost, order.currency)} />
-                        <Stat label="Qty Confirmed" value={String(order.quantity_confirmed)} />
+                        <Stat label="Qty Ordered" value={String(order.quantity_confirmed)} />
                         <Stat label="Qty Received" value={String((order.order_parts ?? []).reduce((sum, p) => sum + p.received, 0))} />
                         <Stat label="Delivery" value={formatDate(order.delivery_date)} />
                     </div>
@@ -178,7 +293,14 @@ function OrderDetail({ order, onBack }: { order: PurchaseOrderDetail; onBack: ()
             </p>
             <div className="space-y-2">
                 {(order.order_parts ?? []).map((part, i) => (
-                    <LineItemCard key={i} part={part} currency={order.currency} />
+                    <LineItemCard 
+                        key={i} 
+                        part={part} 
+                        currency={order.currency} 
+                        receivedToday={receivedToday[part.sku_name] || 0}
+                        onReceivedTodayChange={(val) => handleReceivedTodayChange(part.sku_name, val)}
+                        disabled={submitting}
+                    />
                 ))}
             </div>
         </div>
@@ -238,8 +360,24 @@ export default function PurchaseOrders() {
     };
 
     if (view === 'detail' && selectedOrder) {
-        return <OrderDetail order={selectedOrder} onBack={() => { setView('list'); setSelectedOrder(null); }} />;
+        return (
+            <OrderDetail 
+                order={selectedOrder} 
+                onBack={() => { setView('list'); setSelectedOrder(null); }} 
+                onRefresh={async () => {
+                    await fetchOrders(true);
+                    try {
+                        const updated = await getPurchaseOrderById(selectedOrder.id);
+                        setSelectedOrder(updated);
+                    } catch {
+                        setView('list');
+                        setSelectedOrder(null);
+                    }
+                }} 
+            />
+        );
     }
+
 
     return (
         <div className="p-8 max-w-4xl">
