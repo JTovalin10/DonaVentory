@@ -4,19 +4,8 @@ import type { PurchaseOrder, PurchaseOrderDetail, PurchaseOrderPart, PurchaseOrd
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 
 type View = 'list' | 'detail';
-
-const STATUS_FILTERS: { value: PurchaseOrderStatus | ''; label: string }[] = [
-    { value: '', label: 'All' },
-    { value: 'DRAFT', label: 'Draft' },
-    { value: 'SENT_FOR_APPROVAL', label: 'Pending Approval' },
-    { value: 'APPROVED', label: 'Approved' },
-    { value: 'CONFIRMED', label: 'Confirmed' },
-    { value: 'PARTIALLY_RECEIVED', label: 'Partial' },
-    { value: 'FULLY_RECEIVED', label: 'Received' },
-];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -69,48 +58,6 @@ function ErrorBanner({ message }: { message: string }) {
         <div className="flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-mono bg-destructive/10 border-destructive/30 text-destructive">
             <span className="text-xs">●</span>
             {message}
-        </div>
-    );
-}
-
-// ── Filter bar ─────────────────────────────────────────────────────────────────
-
-interface StatusFilterBarProps {
-    active: PurchaseOrderStatus | '';
-    loading: boolean;
-    cooldown: boolean;
-    onChange: (status: PurchaseOrderStatus | '') => void;
-    onRefresh: () => void;
-}
-
-function StatusFilterBar({ active, loading, cooldown, onChange, onRefresh }: StatusFilterBarProps) {
-    return (
-        <div className="flex items-center justify-between gap-4 mb-6">
-            <div className="flex flex-wrap gap-1.5">
-                {STATUS_FILTERS.map(opt => (
-                    <button
-                        key={opt.value}
-                        onClick={() => onChange(opt.value as PurchaseOrderStatus | '')}
-                        className={cn(
-                            'px-3 py-1 rounded-full text-xs font-medium transition-colors border',
-                            active === opt.value
-                                ? 'bg-primary text-primary-foreground border-primary'
-                                : 'bg-background text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground'
-                        )}
-                    >
-                        {opt.label}
-                    </button>
-                ))}
-            </div>
-            <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading || cooldown}>
-                {loading ? <Spinner /> : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="23 4 23 10 17 10" />
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                    </svg>
-                )}
-                {cooldown ? 'Please wait…' : 'Refresh'}
-            </Button>
         </div>
     );
 }
@@ -247,7 +194,6 @@ export default function PurchaseOrders() {
     const [loading, setLoading] = useState(true);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [error, setError] = useState('');
-    const [filterStatus, setFilterStatus] = useState<PurchaseOrderStatus | ''>('');
     const [refreshCooldown, setRefreshCooldown] = useState(false);
     const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -261,8 +207,7 @@ export default function PurchaseOrders() {
         setLoading(true);
         setError('');
         try {
-            const params = filterStatus ? { order_status: filterStatus } : {};
-            const res = await getPurchaseOrders(params);
+            const res = await getPurchaseOrders();
             const sorted = (res.data ?? []).sort((a, b) => {
                 const aFull = a.order_status === 'FULLY_RECEIVED' ? 1 : 0;
                 const bFull = b.order_status === 'FULLY_RECEIVED' ? 1 : 0;
@@ -276,7 +221,7 @@ export default function PurchaseOrders() {
         }
     };
 
-    useEffect(() => { fetchOrders(); }, [filterStatus]);
+    useEffect(() => { fetchOrders(); }, []);
 
     const handleOrderClick = async (order: PurchaseOrder) => {
         setLoadingDetail(true);
@@ -298,13 +243,17 @@ export default function PurchaseOrders() {
 
     return (
         <div className="p-8 max-w-4xl">
-            <StatusFilterBar
-                active={filterStatus}
-                loading={loading}
-                cooldown={refreshCooldown}
-                onChange={setFilterStatus}
-                onRefresh={() => fetchOrders(true)}
-            />
+            <div className="flex justify-end mb-6">
+                <Button variant="outline" size="sm" onClick={() => fetchOrders(true)} disabled={loading || refreshCooldown}>
+                    {loading ? <Spinner /> : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                    )}
+                    {refreshCooldown ? 'Please wait…' : 'Refresh'}
+                </Button>
+            </div>
 
             {loading ? (
                 <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
