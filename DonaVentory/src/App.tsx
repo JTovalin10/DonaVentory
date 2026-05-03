@@ -4,6 +4,7 @@ import type { Tab } from '@/components/Sidebar';
 import ProductionIntake from '@/components/ProductionIntake';
 import BatchProductionIntake from '@/components/BatchProductionIntake';
 import PurchaseOrders from '@/components/PurchaseOrders';
+import StockAdjustment from '@/components/StockAdjustment';
 import ComingSoon from '@/components/ComingSoon';
 
 export default function App() {
@@ -24,7 +25,8 @@ export default function App() {
         {activeTab === 'intake' && <ProductionIntake />}
         {activeTab === 'batch' && <BatchProductionIntake />}
         {activeTab === 'receipt' && <PurchaseOrders />}
-        {activeTab !== 'intake' && activeTab !== 'batch' && activeTab !== 'receipt' && (
+        {activeTab === 'adjustment' && <StockAdjustment />}
+        {activeTab !== 'intake' && activeTab !== 'batch' && activeTab !== 'receipt' && activeTab !== 'adjustment' && (
           <ComingSoon label={currentItem.label} description={currentItem.description} />
         )}
       </main>
