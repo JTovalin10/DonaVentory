@@ -3,6 +3,7 @@ import Sidebar, { NAV_ITEMS } from '@/components/Sidebar';
 import type { Tab } from '@/components/Sidebar';
 import ProductionIntake from '@/components/ProductionIntake';
 import BatchProductionIntake from '@/components/BatchProductionIntake';
+import PurchaseOrders from '@/components/PurchaseOrders';
 import ComingSoon from '@/components/ComingSoon';
 
 export default function App() {
@@ -22,7 +23,8 @@ export default function App() {
 
         {activeTab === 'intake' && <ProductionIntake />}
         {activeTab === 'batch' && <BatchProductionIntake />}
-        {activeTab !== 'intake' && activeTab !== 'batch' && (
+        {activeTab === 'receipt' && <PurchaseOrders />}
+        {activeTab !== 'intake' && activeTab !== 'batch' && activeTab !== 'receipt' && (
           <ComingSoon label={currentItem.label} description={currentItem.description} />
         )}
       </main>
