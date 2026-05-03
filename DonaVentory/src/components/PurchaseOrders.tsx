@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getPurchaseOrders, getPurchaseOrderById } from '@/Backend/PurchaseOrders';
+import { useState, useEffect, useRef } from 'react';
+import { getPurchaseOrders, getPurchaseOrderById, clearPurchaseOrdersCache } from '@/Backend/PurchaseOrders';
 import type { PurchaseOrder, PurchaseOrderDetail, PurchaseOrderPart, PurchaseOrderStatus } from '@/Backend/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -78,11 +78,12 @@ function ErrorBanner({ message }: { message: string }) {
 interface StatusFilterBarProps {
     active: PurchaseOrderStatus | '';
     loading: boolean;
+    cooldown: boolean;
     onChange: (status: PurchaseOrderStatus | '') => void;
     onRefresh: () => void;
 }
 
-function StatusFilterBar({ active, loading, onChange, onRefresh }: StatusFilterBarProps) {
+function StatusFilterBar({ active, loading, cooldown, onChange, onRefresh }: StatusFilterBarProps) {
     return (
         <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex flex-wrap gap-1.5">
@@ -101,14 +102,14 @@ function StatusFilterBar({ active, loading, onChange, onRefresh }: StatusFilterB
                     </button>
                 ))}
             </div>
-            <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+            <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading || cooldown}>
                 {loading ? <Spinner /> : (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="23 4 23 10 17 10" />
                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                     </svg>
                 )}
-                Refresh
+                {cooldown ? 'Please wait…' : 'Refresh'}
             </Button>
         </div>
     );
@@ -247,8 +248,16 @@ export default function PurchaseOrders() {
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [error, setError] = useState('');
     const [filterStatus, setFilterStatus] = useState<PurchaseOrderStatus | ''>('');
+    const [refreshCooldown, setRefreshCooldown] = useState(false);
+    const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (forceRefresh = false) => {
+        if (forceRefresh) {
+            clearPurchaseOrdersCache();
+            setRefreshCooldown(true);
+            if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
+            cooldownTimer.current = setTimeout(() => setRefreshCooldown(false), 5000);
+        }
         setLoading(true);
         setError('');
         try {
@@ -292,8 +301,9 @@ export default function PurchaseOrders() {
             <StatusFilterBar
                 active={filterStatus}
                 loading={loading}
+                cooldown={refreshCooldown}
                 onChange={setFilterStatus}
-                onRefresh={fetchOrders}
+                onRefresh={() => fetchOrders(true)}
             />
 
             {loading ? (

@@ -1,6 +1,7 @@
 import type { SKU } from "../types";
 import { BASE_URL, getHeaders } from "../api-config";
 import { LRUCache } from "../Cache/LRUCache";
+import { fetchWithLog } from "../logger";
 
 const cache = new LRUCache<string, SKU>(2500);           // sku_id → SKU
 const queryGroups = new Map<string, Set<string>>();      // query → sku_ids
@@ -49,7 +50,7 @@ export async function searchFromCache(name: string): Promise<SKU[]> {
         queryGroups.delete(query);
     }
 
-    const response = await fetch(`${BASE_URL}/skus?aggregation_level=SKU`, {
+    const response = await fetchWithLog(`${BASE_URL}/skus?aggregation_level=SKU`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ name_like: name }),

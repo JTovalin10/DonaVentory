@@ -1,4 +1,5 @@
 import { getHeaders, BASE_URL } from "../api-config";
+import { fetchWithLog } from "../logger";
 
 export interface Supplier {
     id: string;
@@ -16,8 +17,8 @@ export interface SuppliersResponse {
  * Fetches all registered suppliers from Prediko.
  */
 export async function getAllSuppliers(): Promise<Supplier[]> {
-    const response = await fetch(`${BASE_URL}/suppliers`, {
-        headers: await getHeaders()
+    const response = await fetchWithLog(`${BASE_URL}/suppliers`, {
+        headers: getHeaders()
     });
 
     if (!response.ok) {

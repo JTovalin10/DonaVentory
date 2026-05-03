@@ -1,6 +1,7 @@
 import type { SKU, POLineItem, CreateOrderRequest, CreateOrderResponse } from "../types";
 import { getAllSuppliers } from "../Suppliers";
 import { BASE_URL, getHeaders } from "../api-config";
+import { fetchWithLog } from "../logger";
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
 
@@ -45,9 +46,9 @@ function buildLineItem(
 // ── API layer ──────────────────────────────────────────────────────────────────
 
 async function sendOrder(payload: CreateOrderRequest): Promise<CreateOrderResponse> {
-    const res = await fetch(`${BASE_URL}/orders`, {
+    const res = await fetchWithLog(`${BASE_URL}/orders`, {
         method: "POST",
-        headers: await getHeaders(),
+        headers: getHeaders(),
         body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error(`Order POST failed: ${res.status}`);

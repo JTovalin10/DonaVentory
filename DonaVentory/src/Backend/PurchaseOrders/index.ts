@@ -5,6 +5,7 @@ import type {
 } from "../types";
 import { BASE_URL, getHeaders } from "../api-config";
 import { TTLCache } from "../Cache/TTLCache";
+import { fetchWithLog } from "../logger";
 
 const FIVE_MINUTES = 5 * 60 * 1000;
 
@@ -13,6 +14,11 @@ const detailCache = new TTLCache<string, PurchaseOrderDetail>(FIVE_MINUTES);
 
 function paramsKey(params: GetOrdersParams): string {
     return JSON.stringify(params, Object.keys(params).sort() as (keyof GetOrdersParams)[]);
+}
+
+export function clearPurchaseOrdersCache(): void {
+    listCache.clear();
+    detailCache.clear();
 }
 
 export async function getPurchaseOrders(
@@ -30,7 +36,7 @@ export async function getPurchaseOrders(
     if (params.date_to) query.set("date_to", params.date_to);
     if (params.supplier_names?.length) params.supplier_names.forEach(s => query.append("supplier_names", s));
 
-    const res = await fetch(`${BASE_URL}/orders?${query.toString()}`, { headers: getHeaders() });
+    const res = await fetchWithLog(`${BASE_URL}/orders?${query.toString()}`, { headers: getHeaders() });
     if (!res.ok) throw new Error(`Failed to fetch purchase orders: ${res.status}`);
 
     const data = await res.json() as PurchaseOrdersResponse;
@@ -47,7 +53,7 @@ export async function getPurchaseOrderById(
     if (cached) return cached;
 
     const query = new URLSearchParams({ aggregation_level: aggregationLevel });
-    const res = await fetch(`${BASE_URL}/orders/${orderId}?${query.toString()}`, { headers: getHeaders() });
+    const res = await fetchWithLog(`${BASE_URL}/orders/${orderId}?${query.toString()}`, { headers: getHeaders() });
     if (!res.ok) throw new Error(`Failed to fetch purchase order ${orderId}: ${res.status}`);
 
     const data = await res.json() as PurchaseOrderDetail;
