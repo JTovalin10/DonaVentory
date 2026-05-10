@@ -29,7 +29,7 @@ function buildLineItem(
     cost: number,
     supplier: string,
     intakeId: string,
-    status: "DRAFT" | "FULLY_RECEIVED"
+    status: "DRAFT" | "PARTIALLY_RECEIVED" | "FULLY_RECEIVED"
 ): POLineItem {
     return {
         sku: sku.sku_name,
@@ -66,15 +66,15 @@ async function sendOrder(payload: CreateOrderRequest, checkErrors = false): Prom
 type ResolvedItem = { sku: SKU; amount: number; cumulativeReceived: number; cost: number; supplier: string };
 
 async function postOrder(items: ResolvedItem[], intakeId: string): Promise<CreateOrderResponse> {
-    const draftItems    = items.map(({ sku, amount, cumulativeReceived, cost, supplier }) =>
-        buildLineItem(sku, amount, cumulativeReceived, cost, supplier, intakeId, "DRAFT")
-    );
-    const receivedItems = items.map(({ sku, amount, cumulativeReceived, cost, supplier }) =>
-        buildLineItem(sku, amount, cumulativeReceived, cost, supplier, intakeId, "FULLY_RECEIVED")
-    );
+    const make = (status: "DRAFT" | "PARTIALLY_RECEIVED" | "FULLY_RECEIVED") =>
+        items.map(({ sku, amount, cumulativeReceived, cost, supplier }) =>
+            buildLineItem(sku, amount, cumulativeReceived, cost, supplier, intakeId, status)
+        );
 
-    await sendOrder({ data: draftItems });
-    return sendOrder({ data: receivedItems }, true);
+    await sendOrder({ data: make("DRAFT") });
+    await sendOrder({ data: make("FULLY_RECEIVED") });
+    await sendOrder({ data: make("PARTIALLY_RECEIVED") });
+    return sendOrder({ data: make("FULLY_RECEIVED") }, true);
 }
 
 // ── Exports ────────────────────────────────────────────────────────────────────
