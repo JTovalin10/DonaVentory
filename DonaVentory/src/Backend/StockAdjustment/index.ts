@@ -61,25 +61,23 @@ export async function adjustStockBatch(
 
     if (filteredItems.length === 0) throw new Error("No stock changes to apply.");
 
-    // FINISHED_GOOD in Prediko sets the stock level absolutely — quantity_received
-    // becomes the new total, not a delta. Send targetAmount directly.
-    const buildLineItems = (status: "DRAFT" | "PARTIALLY_RECEIVED" | "FULLY_RECEIVED") =>
-        filteredItems.map(({ sku, targetAmount }) => ({
+    const lineItems = filteredItems.map(({ sku, targetAmount }) => {
+        const diff = calcDiff(sku, targetAmount);
+        return {
             sku: sku.sku_name,
             warehouse: "Warehouse",
-            quantity_ordered: targetAmount,
-            quantity_received: targetAmount,
+            quantity_ordered: diff,
+            quantity_received: diff,
             unit_cost_supplier: sku.unit_cost,
             supplier: resolveSupplier(sku, supplierNames),
             purchase_order_name: adjustmentId,
             delivery: today(),
-            status,
+            status: "FULLY_RECEIVED" as const,
             order_type: "FINISHED_GOOD" as const,
-        }));
+        };
+    });
 
-    await sendOrder({ data: buildLineItems("DRAFT") }, 'DRAFT');
-    await sendOrder({ data: buildLineItems("PARTIALLY_RECEIVED") }, 'PARTIALLY_RECEIVED');
-    const result = await sendOrder({ data: buildLineItems("FULLY_RECEIVED") }, 'FULLY_RECEIVED');
+    const result = await sendOrder({ data: lineItems }, 'FULLY_RECEIVED');
     clearStockCache();
     return result;
 }

@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, ArrowLeft, ShoppingCart } from 'lucide-react';
 import SuccessCard from '@/components/SuccessCard';
+import Disclaimer from '@/components/Disclaimer';
 
 type View = 'search' | 'checkout';
 
@@ -157,6 +158,8 @@ export default function BatchProductionIntake() {
 
         <div className="border-t border-border" />
 
+        <Disclaimer message="Stock levels may take 1–5 minutes to reflect after submission." />
+
         {/* Cart items */}
         <div className="space-y-2">
           {cartItems.length === 0 ? (
@@ -242,6 +245,7 @@ export default function BatchProductionIntake() {
   // ── Search view ─────────────────────────────────────────────────────────
   return (
     <div className="p-8 max-w-2xl pb-28">
+      <Disclaimer message="Stock levels may take 1–5 minutes to reflect after submission." />
       {/* Search bar */}
       <div className="flex gap-2 mb-4">
         <Input

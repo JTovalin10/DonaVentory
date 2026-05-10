@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import SuccessCard from '@/components/SuccessCard';
+import Disclaimer from '@/components/Disclaimer';
 
 type View = 'search' | 'form' | 'success';
 
@@ -100,6 +101,7 @@ export default function ProductionIntake() {
     <div className="p-8 max-w-2xl">
       {view === 'search' ? (
         <div className="space-y-4">
+          <Disclaimer message="Stock levels may take 1–5 minutes to reflect after submission." />
           {/* Search bar */}
           <div className="flex gap-2">
             <Input
@@ -186,6 +188,8 @@ export default function ProductionIntake() {
                   placeholder="Enter quantity"
                 />
               </div>
+
+              <Disclaimer message="Stock levels may take 1–5 minutes to reflect after submission." />
 
               <div className="flex gap-2 pt-2 border-t">
                 <Button

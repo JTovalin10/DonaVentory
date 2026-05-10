@@ -5,6 +5,7 @@ import ProductionIntake from '@/components/ProductionIntake';
 import BatchProductionIntake from '@/components/BatchProductionIntake';
 import PurchaseOrders from '@/components/PurchaseOrders';
 import StockAdjustment from '@/components/StockAdjustment';
+import SOPs from '@/components/SOPs';
 import ComingSoon from '@/components/ComingSoon';
 
 export default function App() {
@@ -26,7 +27,8 @@ export default function App() {
         {activeTab === 'batch' && <BatchProductionIntake />}
         {activeTab === 'receipt' && <PurchaseOrders />}
         {activeTab === 'adjustment' && <StockAdjustment />}
-        {activeTab !== 'intake' && activeTab !== 'batch' && activeTab !== 'receipt' && activeTab !== 'adjustment' && (
+        {activeTab === 'sop' && <SOPs />}
+        {activeTab !== 'intake' && activeTab !== 'batch' && activeTab !== 'receipt' && activeTab !== 'adjustment' && activeTab !== 'sop' && (
           <ComingSoon label={currentItem.label} description={currentItem.description} />
         )}
       </main>

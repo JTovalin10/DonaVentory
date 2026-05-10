@@ -79,7 +79,6 @@ async function postOrder(items: ResolvedItem[], intakeId: string): Promise<Creat
         );
 
     await sendOrder({ data: make("DRAFT") }, false, 'DRAFT');
-    await sendOrder({ data: make("PARTIALLY_RECEIVED") }, false, 'PARTIALLY_RECEIVED');
     return sendOrder({ data: make("FULLY_RECEIVED") }, true, 'FULLY_RECEIVED');
 }
 

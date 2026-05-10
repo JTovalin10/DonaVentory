@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, ArrowLeft, ClipboardList } from 'lucide-react';
 import SuccessCard from '@/components/SuccessCard';
+import Disclaimer from '@/components/Disclaimer';
 
 type View = 'search' | 'checkout' | 'success';
 
@@ -140,6 +141,9 @@ export default function StockAdjustment() {
                 </div>
 
                 <div className="border-t border-border" />
+
+                <Disclaimer message="New total must be greater than current stock — adjustments can only increase stock." />
+                <Disclaimer message="Stock levels may take 1–5 minutes to reflect after submission." />
 
                 <div className="space-y-2">
                     {cartItems.map(sku => {
