@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getPurchaseOrders, getPurchaseOrderById, clearPurchaseOrdersCache, updatePurchaseOrderReceipt, updatePurchaseOrderStatus } from '@/Backend/PurchaseOrders';
-import type { PurchaseOrder, PurchaseOrderDetail, PurchaseOrderPart, PurchaseOrderStatus, POLineItem } from '@/Backend/types';
+import type { PurchaseOrder, PurchaseOrderDetail, PurchaseOrderPart, PurchaseOrderStatus, PurchaseOrderType, POLineItem } from '@/Backend/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -309,6 +309,13 @@ function OrderDetail({ order, onBack, onRefresh }: { order: PurchaseOrderDetail;
 
 // ── Main view ──────────────────────────────────────────────────────────────────
 
+const ORDER_TYPE_FILTERS: { label: string; value: PurchaseOrderType | null }[] = [
+    { label: 'All', value: null },
+    { label: 'Production', value: 'PRODUCTION_ORDER' },
+    { label: 'Finished Good', value: 'FINISHED_GOOD' },
+    { label: 'Raw Material', value: 'RAW_MATERIAL' },
+];
+
 export default function PurchaseOrders() {
     const [view, setView] = useState<View>('list');
     const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -317,9 +324,10 @@ export default function PurchaseOrders() {
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [error, setError] = useState('');
     const [refreshCooldown, setRefreshCooldown] = useState(false);
+    const [typeFilter, setTypeFilter] = useState<PurchaseOrderType | null>(null);
     const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const fetchOrders = async (forceRefresh = false) => {
+    const fetchOrders = async (forceRefresh = false, filter: PurchaseOrderType | null = typeFilter) => {
         if (forceRefresh) {
             clearPurchaseOrdersCache();
             setRefreshCooldown(true);
@@ -329,7 +337,8 @@ export default function PurchaseOrders() {
         setLoading(true);
         setError('');
         try {
-            const res = await getPurchaseOrders();
+            const params = filter ? { order_types: [filter] } : {};
+            const res = await getPurchaseOrders(params);
             const sorted = (res.data ?? []).sort((a, b) => {
                 const aFull = a.order_status === 'FULLY_RECEIVED' ? 1 : 0;
                 const bFull = b.order_status === 'FULLY_RECEIVED' ? 1 : 0;
@@ -343,7 +352,7 @@ export default function PurchaseOrders() {
         }
     };
 
-    useEffect(() => { fetchOrders(); }, []);
+    useEffect(() => { fetchOrders(false, typeFilter); }, [typeFilter]);
 
     const handleOrderClick = async (order: PurchaseOrder) => {
         setLoadingDetail(true);
@@ -381,7 +390,27 @@ export default function PurchaseOrders() {
 
     return (
         <div className="p-8 max-w-4xl">
-            <div className="flex justify-end mb-6">
+            <div className="flex items-center justify-between mb-6 gap-4">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {ORDER_TYPE_FILTERS.map(f => (
+                        <button
+                            key={String(f.value)}
+                            onClick={() => {
+                                if (f.value !== typeFilter) {
+                                    clearPurchaseOrdersCache();
+                                    setTypeFilter(f.value);
+                                }
+                            }}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                typeFilter === f.value
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
+                            }`}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
+                </div>
                 <Button variant="outline" size="sm" onClick={() => fetchOrders(true)} disabled={loading || refreshCooldown}>
                     {loading ? <Spinner /> : (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { searchAllStock, prefillStockCache, adjustStockBatch, calcDiff } from '@/Backend/StockAdjustment';
+import { searchAllStock, prefillStockCache, adjustStockBatch } from '@/Backend/StockAdjustment';
 import type { SKU } from '@/Backend/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,15 +13,6 @@ type View = 'search' | 'checkout' | 'success';
 function Spinner() {
     return (
         <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block shrink-0" />
-    );
-}
-
-function DiffBadge({ diff }: { diff: number }) {
-    if (diff === 0) return <span className="text-xs text-muted-foreground font-mono">no change</span>;
-    return (
-        <span className={`text-xs font-mono font-medium ${diff > 0 ? 'text-primary' : 'text-destructive'}`}>
-            {diff > 0 ? `+${diff}` : diff}
-        </span>
     );
 }
 
@@ -94,23 +85,17 @@ export default function StockAdjustment() {
             targetAmount: Number(targets.get(sku.sku_id)),
         }));
 
-        const hasChanges = items.some(({ sku, targetAmount }) => calcDiff(sku, targetAmount) !== 0);
-        if (!hasChanges) {
-            setSubmitError('All values match current stock — nothing to update.');
-            return;
-        }
-
         setFieldErrors(false);
         setSubmitError('');
         setSubmitting(true);
 
         try {
             await adjustStockBatch(items, firstName);
-            const changed = items.filter(({ sku, targetAmount }) => calcDiff(sku, targetAmount) !== 0);
-            setSuccessMsg(`Updated stock for ${changed.length} product${changed.length !== 1 ? 's' : ''}.`);
+            setSuccessMsg(`Updated stock for ${items.length} product${items.length !== 1 ? 's' : ''}.`);
             setView('success');
-        } catch {
-            setSubmitError('Failed to submit adjustment. Check your API key.');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to submit adjustment.';
+            setSubmitError(msg);
         } finally {
             setSubmitting(false);
         }
@@ -160,7 +145,6 @@ export default function StockAdjustment() {
                     {cartItems.map(sku => {
                         const val = targets.get(sku.sku_id) ?? '';
                         const hasError = fieldErrors && (val === '' || Number(val) < 0);
-                        const diff = val !== '' ? calcDiff(sku, Number(val)) : null;
 
                         return (
                             <Card key={sku.sku_id}>
@@ -171,7 +155,6 @@ export default function StockAdjustment() {
                                             <p className="text-xs text-muted-foreground font-mono truncate">{sku.sku_name}</p>
                                             <span className="text-xs text-muted-foreground">·</span>
                                             <span className="text-xs text-muted-foreground font-mono">current: {sku.sum_stock_level}</span>
-                                            {diff !== null && <><span className="text-xs text-muted-foreground">→</span><DiffBadge diff={diff} /></>}
                                         </div>
                                     </div>
                                     <Input

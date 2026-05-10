@@ -1,6 +1,6 @@
 const isDev = import.meta.env.DEV;
 
-async function logToTerminal(payload: object): Promise<void> {
+export async function logToTerminal(payload: object): Promise<void> {
     try {
         await fetch('/__log', {
             method: 'POST',

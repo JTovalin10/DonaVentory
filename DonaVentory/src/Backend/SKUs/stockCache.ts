@@ -1,7 +1,7 @@
 import type { SKU } from "../types";
 import { BASE_URL, getHeaders } from "../api-config";
 import { LRUCache } from "../Cache/LRUCache";
-import { fetchWithLog } from "../logger";
+import { fetchWithLog, logToTerminal } from "../logger";
 
 const cache = new LRUCache<string, SKU>(2500);
 const queryGroups = new Map<string, Set<string>>();
@@ -9,8 +9,15 @@ let allSKUs: SKU[] = [];
 let allLoaded = false;
 
 // ── Prefill ────────────────────────────────────────────────────────────────────
-// Called on page load — fetches every SKU + raw material once so all searches
+// Called on page load — fetches every finished-good SKU once so all searches
 // are instant client-side for the rest of the session.
+
+export function clearStockCache(): void {
+    cache.clear();
+    queryGroups.clear();
+    allSKUs = [];
+    allLoaded = false;
+}
 
 export async function prefillStockCache(): Promise<void> {
     if (allLoaded) return;
@@ -18,7 +25,7 @@ export async function prefillStockCache(): Promise<void> {
     const response = await fetchWithLog(`${BASE_URL}/skus?aggregation_level=SKU`, {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ with_material: true }),
+        body: JSON.stringify({}),
     });
 
     if (!response.ok) throw new Error(`Stock prefill failed: ${response.status}`);
@@ -49,10 +56,18 @@ export async function searchFromStockCache(name: string): Promise<SKU[]> {
 
     // If prefilled, filter locally — no API call needed
     if (allLoaded) {
-        return allSKUs.filter(s =>
+        const results = allSKUs.filter(s =>
             s.sku_name.toLowerCase().includes(query) ||
             s.product_name.toLowerCase().includes(query)
         );
+        logToTerminal({
+            method: 'CACHE',
+            url: `${BASE_URL}/skus?aggregation_level=SKU`,
+            requestBody: { name_like: name },
+            status: 200,
+            response: { data: results.map(r => ({ sku_name: r.sku_name, product_name: r.product_name, sum_stock_level: r.sum_stock_level })) },
+        });
+        return results;
     }
 
     // Fallback: query groups + API
@@ -72,7 +87,7 @@ export async function searchFromStockCache(name: string): Promise<SKU[]> {
     const response = await fetchWithLog(`${BASE_URL}/skus?aggregation_level=SKU`, {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ name_like: name, with_material: true }),
+        body: JSON.stringify({ name_like: name }),
     });
 
     if (!response.ok) throw new Error(`Stock search failed: ${response.status}`);

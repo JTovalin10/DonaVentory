@@ -2,7 +2,7 @@ import type { SKU, CreateOrderRequest, CreateOrderResponse } from "../types";
 import { getAllSuppliers } from "../Suppliers";
 import { BASE_URL, getHeaders } from "../api-config";
 import { fetchWithLog } from "../logger";
-import { searchFromStockCache, prefillStockCache } from "../SKUs/stockCache";
+import { searchFromStockCache, prefillStockCache, clearStockCache } from "../SKUs/stockCache";
 
 export { searchFromStockCache as searchAllStock, prefillStockCache };
 
@@ -12,7 +12,8 @@ function today(): string {
 
 function generateAdjustmentId(firstName: string): string {
     const now = new Date();
-    const time = `${now.getHours()}${now.getMinutes()}${now.getSeconds()}`;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${String(now.getMilliseconds()).padStart(3, '0')}`;
     const date = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
     return `${firstName.trim().toLowerCase()} UPDATE - ${date} (${time})`;
 }
@@ -46,25 +47,26 @@ export async function adjustStockBatch(
     const suppliers = await getAllSuppliers();
     const supplierNames = suppliers.map(s => s.name);
 
+    // FINISHED_GOOD in Prediko sets the stock level absolutely — quantity_received
+    // becomes the new total, not a delta. Send targetAmount directly.
     const lineItems = items
         .filter(({ sku, targetAmount }) => calcDiff(sku, targetAmount) !== 0)
-        .map(({ sku, targetAmount }) => {
-            const diff = calcDiff(sku, targetAmount);
-            return {
-                sku: sku.sku_name,
-                warehouse: "Warehouse",
-                quantity_ordered: diff,
-                quantity_received: diff,
-                unit_cost_supplier: sku.unit_cost,
-                supplier: resolveSupplier(sku, supplierNames),
-                purchase_order_name: adjustmentId,
-                delivery: today(),
-                status: "FULLY_RECEIVED" as const,
-                order_type: "FINISHED_GOOD" as const,
-            };
-        });
+        .map(({ sku, targetAmount }) => ({
+            sku: sku.sku_name,
+            warehouse: "Warehouse",
+            quantity_ordered: targetAmount,
+            quantity_received: targetAmount,
+            unit_cost_supplier: sku.unit_cost,
+            supplier: resolveSupplier(sku, supplierNames),
+            purchase_order_name: adjustmentId,
+            delivery: today(),
+            status: "FULLY_RECEIVED" as const,
+            order_type: "FINISHED_GOOD" as const,
+        }));
 
     if (lineItems.length === 0) throw new Error("No stock changes to apply.");
 
-    return sendOrder({ data: lineItems });
+    const result = await sendOrder({ data: lineItems });
+    clearStockCache();
+    return result;
 }

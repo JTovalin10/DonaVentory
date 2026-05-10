@@ -7,7 +7,8 @@ import { fetchWithLog } from "../logger";
 
 function generateIntakeId(firstName: string): string {
     const now = new Date();
-    const time = `${now.getHours()}${now.getMinutes()}${now.getSeconds()}`;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${String(now.getMilliseconds()).padStart(3, '0')}`;
     const date = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
     return `${firstName.trim().toLowerCase()} - ${date} (${time})`;
 }
@@ -24,6 +25,7 @@ function resolveSupplier(sku: SKU, supplierNames: string[]): string {
 function buildLineItem(
     sku: SKU,
     amount: number,
+    cumulativeReceived: number,
     cost: number,
     supplier: string,
     intakeId: string,
@@ -33,7 +35,7 @@ function buildLineItem(
         sku: sku.sku_name,
         warehouse: "Warehouse",
         quantity_ordered: amount,
-        quantity_received: status === "FULLY_RECEIVED" ? amount : 0,
+        quantity_received: cumulativeReceived,
         unit_cost_supplier: cost,
         supplier,
         purchase_order_name: intakeId,
@@ -45,31 +47,32 @@ function buildLineItem(
 
 // ── API layer ──────────────────────────────────────────────────────────────────
 
-async function sendOrder(payload: CreateOrderRequest): Promise<CreateOrderResponse> {
+async function sendOrder(payload: CreateOrderRequest, checkErrors = false): Promise<CreateOrderResponse> {
     const res = await fetchWithLog(`${BASE_URL}/orders`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error(`Order POST failed: ${res.status}`);
-    return res.json() as Promise<CreateOrderResponse>;
+    const data = await res.json() as CreateOrderResponse;
+    if (checkErrors && data.errors?.length) throw new Error(data.errors.join(', '));
+    return data;
 }
 
 // ── Order flow ─────────────────────────────────────────────────────────────────
-// Accepts resolved line item data, runs DRAFT → FULLY_RECEIVED, returns result.
 
-type ResolvedItem = { sku: SKU; amount: number; cost: number; supplier: string };
+type ResolvedItem = { sku: SKU; amount: number; cumulativeReceived: number; cost: number; supplier: string };
 
 async function postOrder(items: ResolvedItem[], intakeId: string): Promise<CreateOrderResponse> {
-    const draftItems = items.map(({ sku, amount, cost, supplier }) =>
-        buildLineItem(sku, amount, cost, supplier, intakeId, "DRAFT")
+    const draftItems    = items.map(({ sku, amount, cumulativeReceived, cost, supplier }) =>
+        buildLineItem(sku, amount, cumulativeReceived, cost, supplier, intakeId, "DRAFT")
     );
-    const receivedItems = items.map(({ sku, amount, cost, supplier }) =>
-        buildLineItem(sku, amount, cost, supplier, intakeId, "FULLY_RECEIVED")
+    const receivedItems = items.map(({ sku, amount, cumulativeReceived, cost, supplier }) =>
+        buildLineItem(sku, amount, cumulativeReceived, cost, supplier, intakeId, "FULLY_RECEIVED")
     );
 
     await sendOrder({ data: draftItems });
-    return sendOrder({ data: receivedItems });
+    return sendOrder({ data: receivedItems }, true);
 }
 
 // ── Exports ────────────────────────────────────────────────────────────────────
@@ -86,6 +89,7 @@ export async function receiveProduction(
     const resolvedItem: ResolvedItem = {
         sku,
         amount,
+        cumulativeReceived: sku.sum_stock_level + amount,
         cost: sku.unit_cost,
         supplier: resolveSupplier(sku, suppliers.map(s => s.name))
     };
@@ -105,6 +109,7 @@ export async function receiveBatchProduction(
     const resolvedItems: ResolvedItem[] = items.map(({ sku, amount }) => ({
         sku,
         amount,
+        cumulativeReceived: sku.sum_stock_level + amount,
         cost: sku.unit_cost,
         supplier: resolveSupplier(sku, supplierNames)
     }));

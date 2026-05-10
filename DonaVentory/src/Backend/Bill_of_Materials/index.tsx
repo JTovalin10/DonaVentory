@@ -1,13 +1,11 @@
 import type { BOMResponse, BOMEntry } from "../types";
 import { BASE_URL, getHeaders } from "../api-config";
+import { fetchWithLog } from "../logger";
 
 const bomAPI = `${BASE_URL}/bill-of-materials`;
 
-/**
- * Fetches the Bill of Materials for a specific finished good SKU to retrieve its unit cost.
- */
 export async function getBOM(skuName: string): Promise<BOMEntry | null> {
-    const response = await fetch(`${bomAPI}?limit=1000`, {
+    const response = await fetchWithLog(`${bomAPI}?limit=1000`, {
         headers: await getHeaders()
     });
 
