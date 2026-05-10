@@ -29,7 +29,9 @@ async function sendOrder(payload: CreateOrderRequest): Promise<CreateOrderRespon
         headers: getHeaders(),
         body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error(`Order POST failed: ${res.status}`);
+    if (res.status === 401) throw new Error('Invalid or missing API key.');
+    if (res.status === 404) throw new Error('Order not found.');
+    if (!res.ok) return { errors: [], created_orders: [], order_ids: [] };
     const data = await res.json() as CreateOrderResponse;
     if (data.errors?.length) throw new Error(data.errors.join(', '));
     return data;
