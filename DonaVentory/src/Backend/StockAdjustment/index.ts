@@ -23,17 +23,25 @@ function resolveSupplier(sku: SKU, supplierNames: string[]): string {
     return supplierNames.length > 0 ? supplierNames[0] : "Terra Green";
 }
 
-async function sendOrder(payload: CreateOrderRequest): Promise<CreateOrderResponse> {
+async function sendOrder(payload: CreateOrderRequest, stage = ''): Promise<CreateOrderResponse> {
+    const prefix = stage ? `[${stage}] ` : '';
     const res = await fetchWithLog(`${BASE_URL}/orders`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(payload),
     });
-    if (res.status === 401) throw new Error('Invalid or missing API key.');
-    if (res.status === 404) throw new Error('Order not found.');
-    if (!res.ok) return { errors: [], created_orders: [], order_ids: [] };
+    if (res.status === 401) throw new Error(`${prefix}Invalid or missing API key.`);
+    if (res.status === 404) throw new Error(`${prefix}Order not found.`);
+    if (!res.ok) {
+        let detail = '';
+        try {
+            const body = await res.json() as Record<string, unknown>;
+            detail = (body.message ?? body.error ?? JSON.stringify(body)) as string;
+        } catch { try { detail = await res.text(); } catch { /* ignore */ } }
+        throw new Error(`${prefix}Order POST failed (${res.status})${detail ? `: ${detail}` : ''}`);
+    }
     const data = await res.json() as CreateOrderResponse;
-    if (data.errors?.length) throw new Error(data.errors.join(', '));
+    if (data.errors?.length) throw new Error(`${prefix}${data.errors.join(', ')}`);
     return data;
 }
 
@@ -55,7 +63,7 @@ export async function adjustStockBatch(
 
     // FINISHED_GOOD in Prediko sets the stock level absolutely — quantity_received
     // becomes the new total, not a delta. Send targetAmount directly.
-    const buildLineItems = (status: "FULLY_RECEIVED" | "PARTIALLY_RECEIVED") =>
+    const buildLineItems = (status: "DRAFT" | "PARTIALLY_RECEIVED" | "FULLY_RECEIVED") =>
         filteredItems.map(({ sku, targetAmount }) => ({
             sku: sku.sku_name,
             warehouse: "Warehouse",
@@ -69,9 +77,9 @@ export async function adjustStockBatch(
             order_type: "FINISHED_GOOD" as const,
         }));
 
-    await sendOrder({ data: buildLineItems("FULLY_RECEIVED") });
-    await sendOrder({ data: buildLineItems("PARTIALLY_RECEIVED") });
-    const result = await sendOrder({ data: buildLineItems("FULLY_RECEIVED") });
+    await sendOrder({ data: buildLineItems("DRAFT") }, 'DRAFT');
+    await sendOrder({ data: buildLineItems("PARTIALLY_RECEIVED") }, 'PARTIALLY_RECEIVED');
+    const result = await sendOrder({ data: buildLineItems("FULLY_RECEIVED") }, 'FULLY_RECEIVED');
     clearStockCache();
     return result;
 }
