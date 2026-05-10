@@ -35,7 +35,8 @@ export default function ProductionIntake() {
       setStatus(data.length > 0 ? '' : 'No products found.');
     } catch (error) {
       console.error(error);
-      setStatus('Search failed. Check your VITE_PREDIKO_AUTH_KEY in .env');
+      const msg = error instanceof Error ? error.message : String(error);
+      setStatus(`Search failed: ${msg}`);
       setIsError(true);
     } finally {
       setLoading(false);
@@ -64,7 +65,8 @@ export default function ProductionIntake() {
       }
     } catch (error) {
       console.error(error);
-      setStatus('Failed to update inventory. Check your API Key in .env');
+      const msg = error instanceof Error ? error.message : String(error);
+      setStatus(`Failed to update inventory: ${msg}`);
       setIsError(true);
     } finally {
       setLoading(false);

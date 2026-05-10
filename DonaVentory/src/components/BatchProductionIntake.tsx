@@ -63,7 +63,8 @@ export default function BatchProductionIntake() {
       setSearchStatus(data.length > 0 ? '' : 'No products found.');
     } catch (error) {
       console.error(error);
-      setSearchStatus('Search failed. Check your VITE_PREDIKO_AUTH_KEY in .env');
+      const msg = error instanceof Error ? error.message : String(error);
+      setSearchStatus(`Search failed: ${msg}`);
     } finally {
       setSearchLoading(false);
     }
@@ -104,8 +105,9 @@ export default function BatchProductionIntake() {
       setAmounts(new Map());
     } catch (error) {
       console.error(error);
+      const msg = error instanceof Error ? error.message : String(error);
       setIsError(true);
-      setSubmitStatus('Failed to process intake. Check your API Key in .env');
+      setSubmitStatus(`Failed to process intake: ${msg}`);
     } finally {
       setSubmitting(false);
     }

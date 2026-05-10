@@ -34,7 +34,7 @@ export default function StockAdjustment() {
     // Prefill cache on mount
     useEffect(() => {
         prefillStockCache()
-            .catch(() => setPrefillError('Failed to load inventory. Check your API key.'))
+            .catch((error: unknown) => setPrefillError(`Failed to load inventory: ${error instanceof Error ? error.message : String(error)}`))
             .finally(() => setPrefilling(false));
     }, []);
 
