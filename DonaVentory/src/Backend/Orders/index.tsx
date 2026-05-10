@@ -25,7 +25,6 @@ function resolveSupplier(sku: SKU, supplierNames: string[]): string {
 function buildLineItem(
     sku: SKU,
     amount: number,
-    cumulativeReceived: number,
     cost: number,
     supplier: string,
     intakeId: string,
@@ -35,7 +34,7 @@ function buildLineItem(
         sku: sku.sku_name,
         warehouse: "Warehouse",
         quantity_ordered: amount,
-        quantity_received: cumulativeReceived,
+        quantity_received: amount,
         unit_cost_supplier: cost,
         supplier,
         purchase_order_name: intakeId,
@@ -71,12 +70,12 @@ async function sendOrder(payload: CreateOrderRequest, checkErrors = false, stage
 
 // ── Order flow ─────────────────────────────────────────────────────────────────
 
-type ResolvedItem = { sku: SKU; amount: number; cumulativeReceived: number; cost: number; supplier: string };
+type ResolvedItem = { sku: SKU; amount: number; cost: number; supplier: string };
 
 async function postOrder(items: ResolvedItem[], intakeId: string): Promise<CreateOrderResponse> {
     const make = (status: "DRAFT" | "PARTIALLY_RECEIVED" | "FULLY_RECEIVED") =>
-        items.map(({ sku, amount, cumulativeReceived, cost, supplier }) =>
-            buildLineItem(sku, amount, cumulativeReceived, cost, supplier, intakeId, status)
+        items.map(({ sku, amount, cost, supplier }) =>
+            buildLineItem(sku, amount, cost, supplier, intakeId, status)
         );
 
     await sendOrder({ data: make("DRAFT") }, false, 'DRAFT');
@@ -92,13 +91,11 @@ export async function receiveProduction(
     firstName: string
 ): Promise<CreateOrderResponse> {
     const intakeId = generateIntakeId(firstName);
-
     const suppliers = await getAllSuppliers();
 
     const resolvedItem: ResolvedItem = {
         sku,
         amount,
-        cumulativeReceived: sku.sum_stock_level + amount,
         cost: sku.unit_cost,
         supplier: resolveSupplier(sku, suppliers.map(s => s.name))
     };
@@ -111,14 +108,12 @@ export async function receiveBatchProduction(
     firstName: string
 ): Promise<CreateOrderResponse> {
     const intakeId = generateIntakeId(firstName);
-
     const suppliers = await getAllSuppliers();
     const supplierNames = suppliers.map(s => s.name);
 
     const resolvedItems: ResolvedItem[] = items.map(({ sku, amount }) => ({
         sku,
         amount,
-        cumulativeReceived: sku.sum_stock_level + amount,
         cost: sku.unit_cost,
         supplier: resolveSupplier(sku, supplierNames)
     }));
