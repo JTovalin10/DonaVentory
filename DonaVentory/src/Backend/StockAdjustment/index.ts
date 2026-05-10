@@ -13,9 +13,9 @@ function today(): string {
 function generateAdjustmentId(firstName: string): string {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
-    const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${String(now.getMilliseconds()).padStart(3, '0')}`;
+    const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const date = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
-    return `${firstName.trim().toLowerCase()} UPDATE - ${date} (${time})`;
+    return `${firstName.trim().toLowerCase()} - ${date} (${time})`;
 }
 
 function resolveSupplier(sku: SKU, supplierNames: string[]): string {
@@ -47,11 +47,14 @@ export async function adjustStockBatch(
     const suppliers = await getAllSuppliers();
     const supplierNames = suppliers.map(s => s.name);
 
+    const filteredItems = items.filter(({ sku, targetAmount }) => calcDiff(sku, targetAmount) !== 0);
+
+    if (filteredItems.length === 0) throw new Error("No stock changes to apply.");
+
     // FINISHED_GOOD in Prediko sets the stock level absolutely — quantity_received
     // becomes the new total, not a delta. Send targetAmount directly.
-    const lineItems = items
-        .filter(({ sku, targetAmount }) => calcDiff(sku, targetAmount) !== 0)
-        .map(({ sku, targetAmount }) => ({
+    const buildLineItems = (status: "FULLY_RECEIVED" | "PARTIALLY_RECEIVED") =>
+        filteredItems.map(({ sku, targetAmount }) => ({
             sku: sku.sku_name,
             warehouse: "Warehouse",
             quantity_ordered: targetAmount,
@@ -60,13 +63,13 @@ export async function adjustStockBatch(
             supplier: resolveSupplier(sku, supplierNames),
             purchase_order_name: adjustmentId,
             delivery: today(),
-            status: "FULLY_RECEIVED" as const,
+            status,
             order_type: "FINISHED_GOOD" as const,
         }));
 
-    if (lineItems.length === 0) throw new Error("No stock changes to apply.");
-
-    const result = await sendOrder({ data: lineItems });
+    await sendOrder({ data: buildLineItems("FULLY_RECEIVED") });
+    await sendOrder({ data: buildLineItems("PARTIALLY_RECEIVED") });
+    const result = await sendOrder({ data: buildLineItems("FULLY_RECEIVED") });
     clearStockCache();
     return result;
 }
