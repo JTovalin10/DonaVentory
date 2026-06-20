@@ -34,7 +34,9 @@ function buildLineItem(
         sku: sku.sku_name,
         warehouse: "Warehouse",
         quantity_ordered: amount,
-        quantity_received: amount,
+        // Prediko's quantity_received is cumulative (total received so far), not a delta.
+        // Send the new running total so stock lands at current + amount, not at amount.
+        quantity_received: sku.sum_stock_level + amount,
         unit_cost_supplier: cost,
         supplier,
         purchase_order_name: intakeId,
