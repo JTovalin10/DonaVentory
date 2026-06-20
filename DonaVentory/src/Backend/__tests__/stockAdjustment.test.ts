@@ -22,14 +22,20 @@ vi.mock('../SKUs/stockCache', () => ({
   clearStockCache: vi.fn(),
 }));
 
+vi.mock('../Warehouse', () => ({
+  default: vi.fn(),
+}));
+
 import { calcDiff, adjustStockBatch } from '../StockAdjustment/index';
 import { fetchWithLog } from '../logger';
 import { getAllSuppliers } from '../Suppliers';
 import { clearStockCache } from '../SKUs/stockCache';
+import get_warehouse_name from '../Warehouse';
 
 const mockFetch = vi.mocked(fetchWithLog);
 const mockSuppliers = vi.mocked(getAllSuppliers);
 const mockClearStockCache = vi.mocked(clearStockCache);
+const mockWarehouse = vi.mocked(get_warehouse_name);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -62,6 +68,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 4, 9, 10, 0, 0));
   mockSuppliers.mockResolvedValue([{ id: 's1', name: 'Supplier A', status: 'active', currency: 'USD' }]);
+  mockWarehouse.mockResolvedValue(['Warehouse']);
   mockFetch.mockResolvedValue(okResponse());
 });
 

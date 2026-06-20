@@ -7,9 +7,10 @@
  * verify the FINISHED_GOOD absolute-quantity fix is working end-to-end.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
+import get_warehouse_name from '../Warehouse/index';
 
 // ── Load real API key from .env ───────────────────────────────────────────────
 
@@ -139,6 +140,32 @@ describe('LIVE — SKU lookup (read-only, no data changes)', () => {
             }
         }
         console.log(`\n  Total orders returned: ${orders.length}`);
+    }, 15_000);
+});
+
+// ── Warehouse name check (read-only) ──────────────────────────────────────────
+// Confirms what the real Prediko account names its warehouse(s), so we know the
+// value get_warehouse_name() / resolveWarehouse() will put on every order line.
+
+describe('LIVE — get_warehouse_name() (read-only, no data changes)', () => {
+    it('selects "Warehouse" (finished goods) from the live endpoint', async () => {
+        // 1. call the endpoint directly to see what it actually returns
+        const res = await fetch(`${BASE_URL}/warehouses`, { headers: headers() });
+        const body = await res.json() as { data?: { name: string }[] };
+        const endpointNames = (body.data ?? []).map(w => w.name);
+
+        // 2. call the function
+        vi.stubEnv('VITE_PREDIKO_AUTH_KEY', AUTH_KEY);
+        const names = await get_warehouse_name();
+        vi.unstubAllEnvs();
+
+        section('get_warehouse_name() vs /warehouses');
+        console.log('  endpoint:', JSON.stringify(endpointNames));
+        console.log('  function:', JSON.stringify(names));
+
+        // 3. "Warehouse" is a real location, and the function selects it for finished goods
+        expect(endpointNames).toContain('Warehouse');
+        expect(names).toEqual(['Warehouse']);
     }, 15_000);
 });
 
