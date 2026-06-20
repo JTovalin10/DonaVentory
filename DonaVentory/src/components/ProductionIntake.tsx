@@ -45,6 +45,7 @@ export default function ProductionIntake() {
   };
 
   const handleIntake = async () => {
+    if (loading) return;
     const numAmount = Number(amount);
     if (!firstName || amount === '' || numAmount < 0) {
       setErrors(true);

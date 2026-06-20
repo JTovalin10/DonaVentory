@@ -2,7 +2,6 @@ import type {
     GetOrdersParams,
     PurchaseOrdersResponse,
     PurchaseOrderDetail,
-    PurchaseOrderPart,
     CreateOrderResponse,
     POLineItem,
     PurchaseOrderStatus,

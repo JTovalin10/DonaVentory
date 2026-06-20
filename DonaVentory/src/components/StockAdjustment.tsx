@@ -72,12 +72,12 @@ export default function StockAdjustment() {
         const cartItems = Array.from(cart.values());
         const hasInvalid = cartItems.some(sku => {
             const val = targets.get(sku.sku_id) ?? '';
-            return val === '' || Number(val) < 0;
+            return val === '' || Number(val) <= sku.sum_stock_level;
         });
 
         if (!firstName || hasInvalid) {
             setFieldErrors(true);
-            setSubmitError(!firstName ? 'Your name is required.' : 'All quantities are required and must be non-negative.');
+            setSubmitError(!firstName ? 'Your name is required.' : 'New totals must be greater than current stock — adjustments can only increase stock.');
             return;
         }
 
@@ -148,7 +148,7 @@ export default function StockAdjustment() {
                 <div className="space-y-2">
                     {cartItems.map(sku => {
                         const val = targets.get(sku.sku_id) ?? '';
-                        const hasError = fieldErrors && (val === '' || Number(val) < 0);
+                        const hasError = fieldErrors && (val === '' || Number(val) <= sku.sum_stock_level);
 
                         return (
                             <Card key={sku.sku_id}>

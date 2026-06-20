@@ -97,7 +97,7 @@ function OrderCard({ order, disabled, onClick }: OrderCardProps) {
                             {formatCost(order.cost, order.currency)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                            {order.quantity_received} / {order.quantity_confirmed} received (Total Ordered: {order.quantity_confirmed})
+                            {order.quantity_received} / {order.quantity_confirmed} received
                         </p>
                     </div>
                 </div>
